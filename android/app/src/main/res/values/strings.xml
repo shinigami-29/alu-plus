@@ -1,7 +1,7 @@
 <resources>  
        <string name="app_name">Alu Plus</string>
     <string name="facebook_app_id">1577206757404825</string>
-    <string name="facebook_client_token">59268f9438743d40b389b2919e4806e9</string>
+    <string name="facebook_client_token">427120b44f53465d991b9fedb2a5911c</string>
     <string name="fb_login_protocol_scheme">fb1577206757404825</string>
 </resources>
 
