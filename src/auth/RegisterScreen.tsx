@@ -1,0 +1,775 @@
+
+  // import React, { useState } from 'react';
+  // import {
+  //   View,
+  //   Text,
+  //   TextInput,
+  //   TouchableOpacity,
+  //   StyleSheet,
+  //   ActivityIndicator,
+  //   Modal,
+  //   KeyboardAvoidingView,
+  //   Platform,
+  //   ScrollView,
+  // } from 'react-native';
+  // import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+  // import { useAuth } from '../context/AuthContext';
+  // import { AlertCircle, Eye, EyeOff } from 'lucide-react-native';
+
+  // type Props = { navigation: NativeStackNavigationProp<any> };
+
+  // const RegisterScreen = ({ navigation }: Props) => {
+  //   const { registerWithEmail } = useAuth();
+  //   const [name, setName] = useState('');
+  //   const [username, setUsername] = useState('');
+  //   const [email, setEmail] = useState('');
+  //   const [password, setPassword] = useState('');
+  //   const [confirmPassword, setConfirmPassword] = useState('');
+  //   const [loading, setLoading] = useState(false);
+
+  //   const [alertVisible, setAlertVisible] = useState(false);
+  //   const [alertTitle, setAlertTitle] = useState('');
+  //   const [alertMessage, setAlertMessage] = useState('');
+  //   const [showPassword, setShowPassword] = useState(false);
+  //   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  //   const showAlert = (title: string, message: string) => {
+  //     setAlertTitle(title);
+  //     setAlertMessage(message);
+  //     setAlertVisible(true);
+  //   };
+
+  //   const handleRegister = () => {
+  //     if (!name || !username || !email || !password || !confirmPassword) {
+  //       showAlert('Error', 'Please fill all the fields!');
+  //       return;
+  //     }
+  //     if (password !== confirmPassword) {
+  //       showAlert('Error', 'Password not matched!');
+  //       return;
+  //     }
+  //     if (password.length < 6) {
+  //       showAlert('Error', 'Password must have at least 6 Character!');
+  //       return;
+  //     }
+  //     setLoading(true);
+  //     registerWithEmail(email, password, name, username)
+  //       .then(() => {
+  //         showAlert(
+  //           'Registration Successful',
+  //           'A verification email has been sent to your inbox. Please check and verify your email.',
+  //         );
+  //         setTimeout(() => {
+  //           navigation.replace('Mode');
+  //         }, 2000);
+  //       })
+  //       .catch(err => {
+  //         showAlert('Register Failed', err.message);
+  //       })
+  //       .finally(() => setLoading(false));
+  //   };
+
+  //   return (
+  //     <>
+  //       <KeyboardAvoidingView
+  //         style={{ flex: 1 }}
+  //         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+  //       >
+  //         <ScrollView
+  //           contentContainerStyle={s.container}
+  //           keyboardShouldPersistTaps="handled"
+  //         >
+  //           {/* Title */}
+  //           <Text style={s.appName}>आलु प्लस</Text>
+  //           <View style={s.titleWrap}>
+  //             <Text style={s.screenTitle}>Create Account</Text>
+  //             <Text style={s.screenSubtitle}>Sign up to get started</Text>
+  //           </View>
+
+  //           {/* Name */}
+  //           <TextInput
+  //             style={s.input}
+  //             placeholder="Full Name"
+  //             placeholderTextColor="#999"
+  //             value={name}
+  //             onChangeText={setName}
+  //           />
+
+  //           {/* Username */}
+  //           <TextInput
+  //             style={s.input}
+  //             placeholder="Username"
+  //             placeholderTextColor="#999"
+  //             value={username}
+  //             onChangeText={setUsername}
+  //             autoCapitalize="none"
+  //           />
+
+  //           {/* Email */}
+  //           <TextInput
+  //             style={s.input}
+  //             placeholder="Email"
+  //             placeholderTextColor="#999"
+  //             value={email}
+  //             onChangeText={setEmail}
+  //             keyboardType="email-address"
+  //             autoCapitalize="none"
+  //           />
+
+  //           {/* Password */}
+  //           <View style={s.passwordWrap}>
+  //             <TextInput
+  //               style={s.passwordInput}
+  //               placeholder="Password"
+  //               placeholderTextColor="#999"
+  //               value={password}
+  //               onChangeText={setPassword}
+  //               secureTextEntry={!showPassword}
+  //             />
+  //             <TouchableOpacity
+  //               style={s.eyeBtn}
+  //               onPress={() => setShowPassword(prev => !prev)}
+  //               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+  //               {showPassword ? (
+  //                 <EyeOff size={20} color="#999" />
+  //               ) : (
+  //                 <Eye size={20} color="#999" />
+  //               )}
+  //             </TouchableOpacity>
+  //           </View>
+
+  //           {/* Confirm Password */}
+  //           <View style={s.passwordWrap}>
+  //             <TextInput
+  //               style={s.passwordInput}
+  //               placeholder="Confirm Password"
+  //               placeholderTextColor="#999"
+  //               value={confirmPassword}
+  //               onChangeText={setConfirmPassword}
+  //               secureTextEntry={!showConfirmPassword}
+  //             />
+  //             <TouchableOpacity  
+  //               style={s.eyeBtn}
+  //               onPress={() => setShowConfirmPassword(prev => !prev)}
+  //               hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+  //               {showConfirmPassword ? (
+  //                 <EyeOff size={20} color="#999" />
+  //               ) : (
+  //                 <Eye size={20} color="#999" />
+  //               )}
+  //             </TouchableOpacity>
+  //           </View>
+
+  //           {/* Register Button */}
+  //           <TouchableOpacity
+  //             style={s.registerBtn}
+  //             onPress={handleRegister}
+  //             disabled={loading}
+  //             activeOpacity={0.85}
+  //           >
+  //             {loading ? (
+  //               <ActivityIndicator color="#fff" />
+  //             ) : (
+  //               <Text style={s.registerBtnText}>Register</Text>
+  //             )}
+  //           </TouchableOpacity>
+
+  //           {/* Login Link — only the "Login" word itself is pressable */}
+  //           <View style={s.loginRow}>
+  //             <Text style={s.loginLinkText}>Have Account? </Text>
+  //             <TouchableOpacity
+  //               onPress={() => navigation.goBack()}
+  //               hitSlop={{ top: 10, bottom: 10, left: 6, right: 10 }}>
+  //               <Text style={s.loginLinkBold}>Login</Text>
+  //             </TouchableOpacity>
+  //           </View>
+  //         </ScrollView>
+  //       </KeyboardAvoidingView>
+
+  //       {/* Custom Alert Popup */}
+  //       <Modal
+  //         visible={alertVisible}
+  //         transparent
+  //         animationType="fade"
+  //         onRequestClose={() => setAlertVisible(false)}>
+  //         <View style={s.overlay}>
+  //           <View style={s.alertCard}>
+  //             <View style={s.alertIconWrap}>
+  //               <AlertCircle size={28} color="#FF4B6E" />
+  //             </View>
+  //             <Text style={s.alertTitle}>{alertTitle}</Text>
+  //             <Text style={s.alertMessage}>{alertMessage}</Text>
+  //             <TouchableOpacity
+  //               style={s.alertBtn}
+  //               onPress={() => setAlertVisible(false)}
+  //               activeOpacity={0.85}>
+  //               <Text style={s.alertBtnText}>OK</Text>
+  //             </TouchableOpacity>
+  //           </View>
+  //         </View>
+  //       </Modal>
+  //     </>
+  //   );
+  // };
+
+  // export default RegisterScreen;
+
+  // const s = StyleSheet.create({
+  //   container: {
+  //     flexGrow: 1,
+  //     alignItems: 'center',
+  //     justifyContent: 'center',
+  //     backgroundColor: '#EEF1FB',
+  //     padding: 24,
+  //   },
+  //   appName: {
+  //     fontSize: 38,
+  //     fontWeight: 'bold',
+  //     color: '#182992',
+  //     letterSpacing: 2,
+  //     marginBottom: 6,
+  //   },
+  //   titleWrap: {
+  //     alignItems: 'center',
+  //     marginBottom: 28,
+  //   },
+  //   screenTitle: {
+  //     fontSize: 22,
+  //     fontWeight: '700',
+  //     color: '#1c1c2e',
+  //     marginBottom: 4,
+  //   },
+  //   screenSubtitle: {
+  //     fontSize: 13,
+  //     color: '#9096ab',
+  //   },
+  //   input: {
+  //     backgroundColor: '#fff',
+  //     width: '100%',
+  //     height: 52,
+  //     borderRadius: 14,
+  //     paddingHorizontal: 16,
+  //     fontSize: 16,
+  //     borderWidth: 1,
+  //     borderColor: '#dde3f0',
+  //     marginBottom: 14,
+  //     color: '#222',
+  //     shadowColor: '#182992',
+  //     shadowOffset: { width: 0, height: 3 },
+  //     shadowOpacity: 0.06,
+  //     shadowRadius: 8,
+  //     elevation: 2,
+  //   },
+  //   registerBtn: {
+  //     backgroundColor: '#182992',
+  //     width: '100%',
+  //     height: 52,
+  //     borderRadius: 14,
+  //     alignItems: 'center',
+  //     justifyContent: 'center',
+  //     marginTop: 6,
+  //     marginBottom: 20,
+  //     shadowColor: '#182992',
+  //     shadowOffset: { width: 0, height: 6 },
+  //     shadowOpacity: 0.3,
+  //     shadowRadius: 12,
+  //     elevation: 4,
+  //   },
+  //   registerBtnText: {
+  //     color: '#fff',
+  //     fontSize: 18,
+  //     fontWeight: 'bold',
+  //     letterSpacing: 0.4,
+  //   },
+  //   loginRow: {
+  //     flexDirection: 'row',
+  //     alignItems: 'center',
+  //     padding: 8,
+  //   },
+  //   loginLinkText: {
+  //     color: '#888',
+  //     fontSize: 14,
+  //   },
+  //   loginLinkBold: {
+  //     color: '#182992',
+  //     fontWeight: 'bold',
+  //     fontSize: 14,
+  //   },
+
+  //   // ---- Custom Alert ----
+  //   overlay: {
+  //     flex: 1,
+  //     backgroundColor: 'rgba(24,41,146,0.4)',
+  //     alignItems: 'center',
+  //     justifyContent: 'center',
+  //     padding: 24,
+  //   },
+  //   alertCard: {
+  //     width: '100%',
+  //     maxWidth: 340,
+  //     backgroundColor: '#fff',
+  //     borderRadius: 24,
+  //     padding: 26,
+  //     alignItems: 'center',
+  //     shadowColor: '#182992',
+  //     shadowOffset: { width: 0, height: 10 },
+  //     shadowOpacity: 0.22,
+  //     shadowRadius: 20,
+  //     elevation: 8,
+  //   },
+  //   alertIconWrap: {
+  //     width: 56,
+  //     height: 56,
+  //     borderRadius: 28,
+  //     backgroundColor: '#FDEBEE',
+  //     alignItems: 'center',
+  //     justifyContent: 'center',
+  //     marginBottom: 14,
+  //   },
+  //   alertTitle: {
+  //     fontSize: 17,
+  //     fontWeight: 'bold',
+  //     color: '#182992',
+  //     marginBottom: 6,
+  //     textAlign: 'center',
+  //   },
+  //   alertMessage: {
+  //     fontSize: 14,
+  //     color: '#7a819c',
+  //     textAlign: 'center',
+  //     marginBottom: 20,
+  //     lineHeight: 20,
+  //   },
+  //   alertBtn: {
+  //     width: '100%',
+  //     height: 46,
+  //     borderRadius: 14,
+  //     backgroundColor: '#FF4B6E',
+  //     alignItems: 'center',
+  //     justifyContent: 'center',
+  //   },
+  //   alertBtnText: {
+  //     color: '#fff',
+  //     fontSize: 15,
+  //     fontWeight: 'bold',
+  //   },
+  //   passwordWrap: {
+  //     width: '100%',
+  //     height: 52,
+  //     borderRadius: 14,
+  //     borderWidth: 1,
+  //     borderColor: '#dde3f0',
+  //     backgroundColor: '#fff',
+  //     marginBottom: 14,
+  //     flexDirection: 'row',
+  //     alignItems: 'center',
+  //     paddingHorizontal: 16,
+  //     shadowColor: '#182992',
+  //     shadowOffset: { width: 0, height: 3 },
+  //     shadowOpacity: 0.06,
+  //     shadowRadius: 8,
+  //     elevation: 2,
+  //   },
+  //   passwordInput: {
+  //     flex: 1,
+  //     height: '100%',
+  //     fontSize: 16,
+  //     color: '#222',
+  //   },
+  //   eyeBtn: {
+  //     paddingLeft: 8,
+  //   },
+  // });
+
+  import React, { useState } from 'react';
+import {
+  View,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  StyleSheet,
+  ActivityIndicator,
+  Modal,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  ImageBackground,
+} from 'react-native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { useAuth } from '../context/AuthContext';
+import { AlertCircle, Eye, EyeOff } from 'lucide-react-native';
+
+type Props = { navigation: NativeStackNavigationProp<any> };
+
+const RegisterScreen = ({ navigation }: Props) => {
+  const { registerWithEmail } = useAuth();
+  const [name, setName] = useState('');
+  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  const [alertVisible, setAlertVisible] = useState(false);
+  const [alertTitle, setAlertTitle] = useState('');
+  const [alertMessage, setAlertMessage] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  const showAlert = (title: string, message: string) => {
+    setAlertTitle(title);
+    setAlertMessage(message);
+    setAlertVisible(true);
+  };
+
+  const handleRegister = () => {
+    if (!name || !username || !email || !password || !confirmPassword) {
+      showAlert('Error', 'Please fill all the fields!');
+      return;
+    }
+    if (password !== confirmPassword) {
+      showAlert('Error', 'Password not matched!');
+      return;
+    }
+    if (password.length < 6) {
+      showAlert('Error', 'Password must have at least 6 Character!');
+      return;
+    }
+    setLoading(true);
+    registerWithEmail(email, password, name, username)
+      .then(() => {
+        showAlert(
+          'Registration Successful',
+          'A verification email has been sent to your inbox. Please check and verify your email.',
+        );
+        setTimeout(() => {
+          navigation.replace('Mode');
+        }, 2000);
+      })
+      .catch(err => {
+        showAlert('Register Failed', err.message);
+      })
+      .finally(() => setLoading(false));
+  };
+
+  return (
+    <ImageBackground
+      source={require('../images/bg3.png')}
+      style={s.bg}
+      resizeMode="cover"
+    >
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <ScrollView
+          contentContainerStyle={s.container}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* Title */}
+          <Text style={s.appName}>आलु प्लस</Text>
+          <View style={s.titleWrap}>
+            <Text style={s.screenTitle}>Create Account</Text>
+            <Text style={s.screenSubtitle}>Sign up to get started</Text>
+          </View>
+
+          {/* ===== Register card ===== */}
+          <View style={s.card}>
+            {/* Name */}
+            <TextInput
+              style={s.input}
+              placeholder="Full Name"
+              placeholderTextColor="#6B7196"
+              value={name}
+              onChangeText={setName}
+            />
+
+            {/* Username */}
+            <TextInput
+              style={s.input}
+              placeholder="Username"
+              placeholderTextColor="#6B7196"
+              value={username}
+              onChangeText={setUsername}
+              autoCapitalize="none"
+            />
+
+            {/* Email */}
+            <TextInput
+              style={s.input}
+              placeholder="Email"
+              placeholderTextColor="#6B7196"
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+            /> 
+
+            {/* Password */}
+            <View style={s.passwordWrap}>
+              <TextInput
+                style={s.passwordInput}
+                placeholder="Password"
+                placeholderTextColor="#6B7196"
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry={!showPassword}
+              />
+              <TouchableOpacity
+                style={s.eyeBtn}
+                onPress={() => setShowPassword(prev => !prev)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                {showPassword ? (
+                  <EyeOff size={20} color="#8B93AE" />
+                ) : (
+                  <Eye size={20} color="#8B93AE" />
+                )}
+              </TouchableOpacity>
+            </View>
+
+            {/* Confirm Password */}
+            <View style={s.passwordWrap}>
+              <TextInput
+                style={s.passwordInput}
+                placeholder="Confirm Password"
+                placeholderTextColor="#6B7196"
+                value={confirmPassword}
+                onChangeText={setConfirmPassword}
+                secureTextEntry={!showConfirmPassword}
+              />
+              <TouchableOpacity
+                style={s.eyeBtn}
+                onPress={() => setShowConfirmPassword(prev => !prev)}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                {showConfirmPassword ? (
+                  <EyeOff size={20} color="#8B93AE" />
+                ) : (
+                  <Eye size={20} color="#8B93AE" />
+                )}
+              </TouchableOpacity>
+            </View>
+
+            {/* Register Button */}
+            <TouchableOpacity
+              style={s.registerBtn}
+              onPress={handleRegister}
+              disabled={loading}
+              activeOpacity={0.85}
+            >
+              {loading ? (
+                <ActivityIndicator color="#12194A" />
+              ) : (
+                <Text style={s.registerBtnText}>Register</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+
+          {/* Login Link — only the "Login" word itself is pressable */}
+          <View style={s.loginRow}>
+            <Text style={s.loginLinkText}>Have Account? </Text>
+            <TouchableOpacity
+              onPress={() => navigation.goBack()}
+              hitSlop={{ top: 10, bottom: 10, left: 6, right: 10 }}>
+              <Text style={s.loginLinkBold}>Login</Text>
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+
+      {/* Custom Alert Popup */}
+      <Modal
+        visible={alertVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setAlertVisible(false)}>
+        <View style={s.overlay}>
+          <View style={s.alertCard}>
+            <View style={s.alertIconWrap}>
+              <AlertCircle size={28} color="#E9877D" />
+            </View>
+            <Text style={s.alertTitle}>{alertTitle}</Text>
+            <Text style={s.alertMessage}>{alertMessage}</Text>
+            <TouchableOpacity
+              style={s.alertBtn}
+              onPress={() => setAlertVisible(false)}
+              activeOpacity={0.85}>
+              <Text style={s.alertBtnText}>OK</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+    </ImageBackground>
+  );
+};
+
+export default RegisterScreen;
+
+const s = StyleSheet.create({
+  bg: { flex: 1 },
+  container: {
+    flexGrow: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  appName: {
+    fontSize: 38,
+    fontWeight: '900',
+    color: '#E0972A',
+    letterSpacing: 2,
+    marginBottom: 6,
+    textShadowColor: 'rgba(0,0,0,0.4)',
+    textShadowOffset: { width: 0, height: 2 },
+    textShadowRadius: 6,
+  },
+  titleWrap: {
+    alignItems: 'center',
+    marginBottom: 26,
+  },
+  screenTitle: {
+    fontSize: 21,
+    fontWeight: '800',
+    color: '#F5EFE0',
+    marginBottom: 4,
+  },
+  screenSubtitle: {
+    fontSize: 13,
+    color: '#8B93AE',
+    fontWeight: '500',
+  },
+
+  // ===== Card wrapping the whole form =====
+  card: {
+    width: '100%',
+    backgroundColor: '#1B2560',
+    borderRadius: 28,
+    paddingVertical: 26,
+    paddingHorizontal: 22,
+    borderWidth: 1,
+    borderColor: 'rgba(224,151,42,0.18)',
+  },
+
+  input: {
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    width: '100%',
+    height: 52,
+    borderRadius: 14,
+    paddingHorizontal: 16,
+    fontSize: 15,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    marginBottom: 14,
+    color: '#F5EFE0',
+  },
+  registerBtn: {
+    backgroundColor: '#E0972A',
+    width: '100%',
+    height: 52,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 6,
+    shadowColor: '#E0972A',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  registerBtnText: {
+    color: '#12194A',
+    fontSize: 17,
+    fontWeight: '800',
+    letterSpacing: 0.4,
+  },
+  loginRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 8,
+    marginTop: 18,
+  },
+  loginLinkText: {
+    color: '#8B93AE',
+    fontSize: 14,
+  },
+  loginLinkBold: {
+    color: '#E0972A',
+    fontWeight: '800',
+    fontSize: 14,
+  },
+
+  // ---- Custom Alert ----
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  alertCard: {
+    width: '100%',
+    maxWidth: 340,
+    backgroundColor: '#1B2560',
+    borderRadius: 24,
+    padding: 26,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.06)',
+  },
+  alertIconWrap: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#3A2226',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 14,
+  },
+  alertTitle: {
+    fontSize: 17,
+    fontWeight: 'bold',
+    color: '#F5EFE0',
+    marginBottom: 6,
+    textAlign: 'center',
+  },
+  alertMessage: {
+    fontSize: 14,
+    color: '#8B93AE',
+    textAlign: 'center',
+    marginBottom: 20,
+    lineHeight: 20,
+  },
+  alertBtn: {
+    width: '100%',
+    height: 46,
+    borderRadius: 14,
+    backgroundColor: '#B31B34',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  alertBtnText: {
+    color: '#fff',
+    fontSize: 15,
+    fontWeight: 'bold',
+  },
+  passwordWrap: {
+    width: '100%',
+    height: 52,
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    marginBottom: 14,
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+  },
+  passwordInput: {
+    flex: 1,
+    height: '100%',
+    fontSize: 15,
+    color: '#F5EFE0',
+  },
+  eyeBtn: {
+    paddingLeft: 8,
+  },
+});

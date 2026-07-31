@@ -1,45 +1,35 @@
-/**
- * Sample React Native App
- * https://github.com/facebook/react-native
- *
- * @format
- */
+import React, { useState, useEffect } from 'react';
+import { StatusBar, StyleSheet, View, Text } from 'react-native';
 
-import { NewAppScreen } from '@react-native/new-app-screen';
-import { StatusBar, StyleSheet, useColorScheme, View } from 'react-native';
-import {
-  SafeAreaProvider,
-  useSafeAreaInsets,
-} from 'react-native-safe-area-context';
+import { SafeAreaProvider } from 'react-native-safe-area-context';
+// import Tik_tak_game from './src/Game/Game';
+import AppNavigator from './src/Navigation/AppNavigator';
+// import {AuthProvider} from './src/context/AuthContext';
+import {AuthProvider} from './src/context/AuthContext';
 
-function App() {
-  const isDarkMode = useColorScheme() === 'dark';
-
+export default function App() { 
   return (
     <SafeAreaProvider>
-      <StatusBar barStyle={isDarkMode ? 'light-content' : 'dark-content'} />
-      <AppContent />
+      <AuthProvider>
+        <StatusBar barStyle="dark-content" backgroundColor="#F5F4F0" />
+        <AppContent />
+      </AuthProvider>
     </SafeAreaProvider>
   );
 }
 
-function AppContent() {
-  const safeAreaInsets = useSafeAreaInsets();
-
+function AppContent() { 
   return (
     <View style={styles.container}>
-      <NewAppScreen
-        templateFileName="App.tsx"
-        safeAreaInsets={safeAreaInsets}
-      />
-    </View>
+      {/* <Tik_tak_game /> */}
+    <AppNavigator />
+       </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    backgroundColor: '#d2cfcf',
   },
 });
-
-export default App;
