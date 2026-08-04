@@ -1,0 +1,17 @@
+export const COLORS = {
+  navy: '#182992',
+  navyDark: '#12194A',
+  panelDark: '#1B2560',
+  gold: '#E0972A',
+  goldBorder: 'rgba(224,151,42,0.35)',
+  cream: '#FFFDF8',
+  creamSoft: 'rgba(255,251,244,0.9)',
+  textOnDark: '#F5EFE0',
+  textOnDarkMuted: '#8B93AE',
+  textMuted: '#9098a8',
+  danger: '#B31B34',
+  dangerSoft: '#FF4B6E',
+  success: '#28C76F',
+  white: '#FFFFFF',
+  border: 'rgba(224,151,42,0.35)',
+};

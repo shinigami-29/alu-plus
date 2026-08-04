@@ -5,15 +5,15 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  Image,
-  Clipboard,
   Alert,
   ActivityIndicator,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useGameLogic } from '../GameLogicContext';
+import Clipboard from '@react-native-clipboard/clipboard';
 import { Copy, Users, DoorOpen, Crown } from 'lucide-react-native';
 import Layout from '../../components/AppLayout/Layout';
+import Avatar from '../../components/Avatar/Avatar';
 
 type Props = {
   navigation: NativeStackNavigationProp<any>;
@@ -137,13 +137,7 @@ const PlayerSlot = ({
       ]}
     >
       {filled ? (
-        photo ? (
-          <Image source={{ uri: photo }} style={s.playerAvatarImage} />
-        ) : (
-          <Text style={s.playerAvatarLetter}>
-            {name?.[0]?.toUpperCase() ?? '?'}
-          </Text>
-        )
+        <Avatar name={name} photoURL={photo} size={56} backgroundColor="#5c6a9e" />
       ) : (
         <Users size={20} color="#c7cbe0" />
       )}
@@ -261,10 +255,6 @@ const s = StyleSheet.create({
     borderColor: 'rgba(255,255,255,0.5)',
     overflow: 'hidden',
   },
-  playerAvatarImage: {
-    width: '100%',
-    height: '100%',
-  },
   playerAvatarFilled: {
     backgroundColor: '#5c6a9e',
   },
@@ -272,11 +262,6 @@ const s = StyleSheet.create({
     backgroundColor: 'rgba(255,255,255,0.1)',
     borderStyle: 'dashed',
     borderColor: 'rgba(255,255,255,0.3)',
-  },
-  playerAvatarLetter: {
-    color: '#fff',
-    fontWeight: '700',
-    fontSize: 20,
   },
   hostBadge: {
     position: 'absolute',

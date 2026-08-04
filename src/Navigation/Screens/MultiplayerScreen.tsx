@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -8,23 +8,22 @@ import {
   StyleSheet,
   Alert,
   FlatList,
-  Image,
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useGameLogic } from '../GameLogicContext';
 import { useAuth } from '../../context/AuthContext';
-import { AVATAR_LIST, getAvatarSource } from '../../avatar/Avatar';
 import {
-  ArrowLeft,
   PlusCircle,
   LogIn,
-  User,
   Search,
   UserPlus,
 } from 'lucide-react-native';
 import Layout from '../../components/AppLayout/Layout';
+import Avatar from '../../components/Avatar/Avatar';
+import GradientCard from '../../components/GradientCard/GradientCard';
+import { COLORS } from '../../theme/colors';
 
 type Props = { navigation: NativeStackNavigationProp<any> };
 
@@ -57,7 +56,6 @@ const MultiplayerScreen = ({ navigation }: Props) => {
   const { userProfile, user } = useAuth();
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
-  const avatarSource = getAvatarSource(userProfile?.avatarId);
   const myPhoto = userProfile?.photoURL || user?.photoURL || null;
 
   const [activeTab, setActiveTab] = useState<Tab>('friends');
@@ -140,9 +138,21 @@ const MultiplayerScreen = ({ navigation }: Props) => {
     setTimeout(() => setToastMessage(null), 3000);
   };
 
+  // debounce username search — avoid firing a query on every keystroke
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+
+  useEffect(() => {
+    return () => {
+      if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    };
+  }, []);
+
   const handleSearchChange = (text: string) => {
     setSearchQuery(text);
-    searchPlayerByUsername(text);
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = setTimeout(() => {
+      searchPlayerByUsername(text);
+    }, 350);
   };
 
   // list rows (game friends / search results) ko avatar — avatarId > photo > letter
@@ -150,29 +160,15 @@ const MultiplayerScreen = ({ navigation }: Props) => {
     name: string,
     photo: string | null,
     avatarId?: string | null,
-  ) => {
-    const source = getAvatarSource(avatarId);
-    if (source) {
-      return <Image source={source} style={s.rowAvatarCircle} />;
-    }
-    if (photo) {
-      return <Image source={{ uri: photo }} style={s.rowAvatarCircle} />;
-    }
-    return (
-      <View style={s.rowAvatarCircle}>
-        <Text style={s.rowAvatarLetter}>
-          {name?.[0]?.toUpperCase() ?? '?'}
-          {/* {item?.[0]?.toUpperCase() ?? '?'} */}
-          </Text>
-      </View>
-    );
-  };
+  ) => (
+    <Avatar name={name} photoURL={photo} avatarId={avatarId} size={36} backgroundColor={COLORS.navy} />
+  );
 
   if (!profileReady) {
     return (
      <Layout>
       <View style={[s.container, s.loadingContainer]}>
-        <ActivityIndicator size="large" color="#182992" />
+        <ActivityIndicator size="large" color={COLORS.gold} />
         <Text style={s.loadingText}>Loading your profile...</Text>
       </View>
     </Layout>
@@ -180,30 +176,17 @@ const MultiplayerScreen = ({ navigation }: Props) => {
   }
 
   return (
-    <Layout withScroll={false}>
+    <Layout
+      withScroll
+      header={{
+        type: 'screen',
+        title: 'Play with Friends',
+        onBack: () => navigation.navigate('Mode'),
+      }}
+    >
        <View style={s.container}>
-        {/* Top bar */}
-        <View style={s.topBar}>
-          <TouchableOpacity
-            style={s.backBtn}
-            onPress={() => navigation.navigate('Mode')}
-          >
-            <ArrowLeft size={20} color="#acb3ea" />
-          </TouchableOpacity>
-          <Text style={s.headerTitle}>Play with Friends</Text>
-          <View style={{ width: 23 }} />
-        </View>
-
         <View style={s.playerHeader}>
-          {avatarSource ? (
-            <Image source={avatarSource} style={s.avatar} />
-          ) : myPhoto ? (
-            <Image source={{ uri: myPhoto }} style={s.avatar} />
-          ) : (
-            <View style={s.avatarCircle}>
-              <User size={20} color="#182992" />
-            </View>
-          )}
+          <Avatar name={myName || 'Guest'} photoURL={myPhoto} avatarId={userProfile?.avatarId} size={44} ring ringColor={COLORS.cream} />
           <View style={{ flex: 1 }}>
             <Text style={s.playingAsName} numberOfLines={1}>
               {myName || 'Guest'}
@@ -214,11 +197,11 @@ const MultiplayerScreen = ({ navigation }: Props) => {
 
         {/* Search by username */}
         <View style={s.searchBar}>
-          <Search size={16} color="#9098a8" />
+          <Search size={16} color="rgba(245,239,224,0.6)" />
           <TextInput
             style={s.searchInput}
             placeholder="Search by username to add/invite"
-            placeholderTextColor="#9098a8"
+            placeholderTextColor="rgba(245,239,224,0.5)"
             value={searchQuery}
             onChangeText={handleSearchChange}
           />
@@ -300,8 +283,8 @@ const MultiplayerScreen = ({ navigation }: Props) => {
                   <RefreshControl
                     refreshing={refreshing}
                     onRefresh={onRefresh}
-                    colors={['#182992']}
-                    tintColor="#182992"
+                    colors={[COLORS.gold]}
+                    tintColor={COLORS.gold}
                   />
                 }
                 renderItem={({ item }) => (
@@ -356,8 +339,8 @@ const MultiplayerScreen = ({ navigation }: Props) => {
                 <RefreshControl
                   refreshing={refreshing}
                   onRefresh={onRefresh}
-                  colors={['#182992']}
-                  tintColor="#182992"
+                  colors={[COLORS.gold]}
+                  tintColor={COLORS.gold}
                 />
               }
               renderItem={({ item }) => (
@@ -396,7 +379,7 @@ const MultiplayerScreen = ({ navigation }: Props) => {
         <TextInput
           style={s.input}
           placeholder="Room name (optional)"
-          placeholderTextColor="#9098a8"
+          placeholderTextColor="rgba(245,239,224,0.5)"
           value={roomName}
           onChangeText={setRoomName}
         />
@@ -404,8 +387,8 @@ const MultiplayerScreen = ({ navigation }: Props) => {
         {/* Action buttons */}
         <View style={s.btnGroup}>
           <TouchableOpacity
-            style={[s.btn, { backgroundColor: '#182992' }]}
-            activeOpacity={0.85}
+            style={s.btnTouchable}
+            activeOpacity={0.88}
             onPress={() =>
               requireLogin(() => {
                 generateRoomCode();
@@ -413,17 +396,21 @@ const MultiplayerScreen = ({ navigation }: Props) => {
               })
             }
           >
-            <PlusCircle size={18} color="#fff" />
-            <Text style={s.btnText}>Create Room</Text>
+            <GradientCard colors={['#2A5FCB', '#0F1E63']} borderRadius={16} style={s.btn}>
+              <PlusCircle size={18} color="#fff" />
+              <Text style={s.btnText}>Create Room</Text>
+            </GradientCard>
           </TouchableOpacity>
 
           <TouchableOpacity
-            style={[s.btn, { backgroundColor: '#28C76F' }]}
-            activeOpacity={0.85}
+            style={s.btnTouchable}
+            activeOpacity={0.88}
             onPress={() => requireLogin(() => navigation.navigate('JoinRoom'))}
           >
-            <LogIn size={18} color="#fff" />
-            <Text style={s.btnText}>Join Room</Text>
+            <GradientCard colors={['#3FD68F', '#1B8552']} borderRadius={16} style={s.btn}>
+              <LogIn size={18} color="#fff" />
+              <Text style={s.btnText}>Join Room</Text>
+            </GradientCard>
           </TouchableOpacity>
         </View>
 
@@ -446,7 +433,6 @@ const s = StyleSheet.create({
   container: {
     flex: 1,
     paddingTop: 10,
-    paddingHorizontal: 20,
   },
   loadingContainer: {
     alignItems: 'center',
@@ -455,62 +441,29 @@ const s = StyleSheet.create({
   },
   loadingText: {
     fontSize: 13,
-    color: '#9098a8',
+    color: 'rgba(245,239,224,0.7)',
     fontWeight: '600',
-  },
-
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 20,
-  },
-  backBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#dde3f0',
-  },
-  headerTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#d3d3f1',
   },
 
   playerHeader: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-    backgroundColor: '#182992',
+    backgroundColor: 'rgba(255,255,255,0.10)',
     borderRadius: 18,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.16)',
     padding: 14,
     marginBottom: 14,
-  },
-  avatar: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-  },
-  avatarCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   playingAsName: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#fff',
+    color: COLORS.textOnDark,
   },
   playingAsLabel: {
     fontSize: 11,
-    color: 'rgba(255,255,255,0.7)',
+    color: 'rgba(245,239,224,0.65)',
     marginTop: 2,
     fontWeight: '500',
   },
@@ -518,25 +471,25 @@ const s = StyleSheet.create({
   searchBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: 'rgba(255,255,255,0.10)',
     borderRadius: 14,
     paddingHorizontal: 14,
     height: 44,
     borderWidth: 1,
-    borderColor: '#eef1f7',
+    borderColor: 'rgba(255,255,255,0.16)',
     gap: 8,
     marginBottom: 10,
   },
   searchInput: {
     flex: 1,
     fontSize: 14,
-    color: '#182992',
+    color: COLORS.textOnDark,
   },
   searchResultsBox: {
-    backgroundColor: '#fff',
+    backgroundColor: 'rgba(255,255,255,0.10)',
     borderRadius: 14,
     borderWidth: 1,
-    borderColor: '#eef1f7',
+    borderColor: 'rgba(255,255,255,0.16)',
     padding: 12,
     gap: 10,
     marginBottom: 10,
@@ -544,12 +497,12 @@ const s = StyleSheet.create({
 
   tabRow: {
     flexDirection: 'row',
-    backgroundColor: '#fff',
+    backgroundColor: 'rgba(255,255,255,0.10)',
     borderRadius: 14,
     padding: 4,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#eef1f7',
+    borderColor: 'rgba(255,255,255,0.16)',
   },
   tabBtn: {
     flex: 1,
@@ -558,23 +511,23 @@ const s = StyleSheet.create({
     alignItems: 'center',
   },
   tabBtnActive: {
-    backgroundColor: '#182992',
+    backgroundColor: COLORS.gold,
   },
   tabText: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#9098a8',
+    color: 'rgba(245,239,224,0.6)',
   },
   tabTextActive: {
-    color: '#fff',
+    color: COLORS.navyDark,
   },
 
   listBox: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: 'rgba(255,255,255,0.08)',
     borderRadius: 18,
     borderWidth: 1,
-    borderColor: '#eef1f7',
+    borderColor: 'rgba(255,255,255,0.16)',
     marginBottom: 14,
     overflow: 'hidden',
   },
@@ -587,7 +540,7 @@ const s = StyleSheet.create({
   },
   emptyText: {
     fontSize: 13,
-    color: '#9098a8',
+    color: 'rgba(245,239,224,0.6)',
     fontWeight: '600',
   },
   playerRowActions: {
@@ -595,15 +548,15 @@ const s = StyleSheet.create({
     gap: 8,
   },
   addBtn: {
-    backgroundColor: '#fff',
+    backgroundColor: 'transparent',
     borderWidth: 1,
-    borderColor: '#182992',
+    borderColor: COLORS.gold,
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 14,
   },
   addBtnText: {
-    color: '#182992',
+    color: COLORS.gold,
     fontSize: 12,
     fontWeight: '700',
   },
@@ -612,8 +565,10 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    backgroundColor: '#F5F4F0',
+    backgroundColor: 'rgba(255,255,255,0.06)',
     borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.10)',
     padding: 10,
   },
   playerRowLeft: {
@@ -622,47 +577,34 @@ const s = StyleSheet.create({
     gap: 10,
     flex: 1,
   },
-  rowAvatarCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#182992',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  rowAvatarLetter: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 14,
-  },
   playerRowName: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#182992',
+    color: COLORS.textOnDark,
     flexShrink: 1,
   },
   inviteBtn: {
-    backgroundColor: '#182992',
+    backgroundColor: COLORS.gold,
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 14,
   },
   inviteBtnText: {
-    color: '#fff',
+    color: COLORS.navyDark,
     fontSize: 12,
     fontWeight: '700',
   },
 
   input: {
-    backgroundColor: '#fff',
+    backgroundColor: 'rgba(255,255,255,0.10)',
     height: 46,
     borderRadius: 14,
     paddingHorizontal: 16,
     fontSize: 14,
     borderWidth: 1,
-    borderColor: '#eef1f7',
+    borderColor: 'rgba(255,255,255,0.16)',
     marginBottom: 14,
-    color: '#182992',
+    color: COLORS.textOnDark,
   },
 
   btnGroup: {
@@ -670,14 +612,15 @@ const s = StyleSheet.create({
     gap: 12,
     marginBottom: 20,
   },
-  btn: {
+  btnTouchable: {
     flex: 1,
+  },
+  btn: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
     paddingVertical: 14,
-    borderRadius: 16,
   },
   btnText: {
     color: '#fff',
@@ -719,7 +662,7 @@ const s = StyleSheet.create({
     height: 11,
     borderRadius: 6,
     borderWidth: 2,
-    borderColor: '#F5F4F0',
+    borderColor: COLORS.navyDark,
   },
   dotOnline: { backgroundColor: '#28C76F' },
   dotOffline: { backgroundColor: '#9098a8' },

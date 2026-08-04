@@ -12,9 +12,10 @@ import {
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth } from '../context/AuthContext';
 import { useFocusEffect } from '@react-navigation/native';
-import { AVATAR_LIST, getAvatarSource } from '../avatar/Avatar';
-import { ArrowLeft, Pencil, Check, X, LogOut } from 'lucide-react-native';
+import { AVATAR_LIST } from '../avatar/Avatar';
+import { Pencil, Check, X, LogOut } from 'lucide-react-native';
 import Layout from '../components/AppLayout/Layout';
+import Avatar from '../components/Avatar/Avatar';
 
 type Props = { navigation: NativeStackNavigationProp<any> };
 
@@ -28,7 +29,6 @@ const ProfileScreen = ({ navigation }: Props) => {
     user?.email?.split('@')[0] ||
     'Guest';
   const photoURL = userProfile?.photoURL || user?.photoURL || null;
-  const avatarSource = getAvatarSource(userProfile?.avatarId);
 
   const [editingName, setEditingName] = useState(false);
   const [newName, setNewName] = useState(displayName);
@@ -131,16 +131,13 @@ const ProfileScreen = ({ navigation }: Props) => {
   );
 
   return (
-    <Layout>
-      {/* Header */}
-      <View style={s.header}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={s.iconBtn}>
-          <ArrowLeft size={19} color="#F5EFE0" />
-        </TouchableOpacity>
-        <Text style={s.headerTitle}>My Profile</Text>
-        <View style={{ width: 36 }} />
-      </View>
-
+    <Layout
+      header={{
+        type: 'screen',
+        title: 'My Profile',
+        onBack: () => navigation.goBack(),
+      }}
+    >
       {/* ===== Floating avatar ===== */}
       <View style={s.avatarFloatWrap}>
         <TouchableOpacity
@@ -149,17 +146,12 @@ const ProfileScreen = ({ navigation }: Props) => {
           activeOpacity={0.85}
         >
           <View style={s.avatarRing}>
-            {avatarSource ? (
-              <Image source={avatarSource} style={s.avatarImage} />
-            ) : photoURL ? (
-              <Image source={{ uri: photoURL }} style={s.avatarImage} />
-            ) : (
-              <View style={s.avatarFallback}>
-                <Text style={s.avatarLetter}>
-                  {displayName?.[0]?.toUpperCase() ?? 'G'}
-                </Text>
-              </View>
-            )}
+            <Avatar
+              name={displayName}
+              photoURL={photoURL}
+              avatarId={userProfile?.avatarId}
+              size={88}
+            />
           </View>
           <View style={s.cameraBadge}>
             <Pencil size={12} color="#12194A" />
@@ -316,7 +308,7 @@ const ProfileScreen = ({ navigation }: Props) => {
         <View style={s.modalOverlay}>
           <View style={s.modalBox}>
             <Text style={s.modalTitle}>Logout</Text>
-            <Text style={s.modalMessage}>Logout garne?</Text>
+            <Text style={s.modalMessage}>Are you sure you want to logout?</Text>
             <View style={s.modalBtnRow}>
               <TouchableOpacity
                 style={s.modalCancelBtn}
@@ -421,7 +413,7 @@ const ProfileScreen = ({ navigation }: Props) => {
 
             <TouchableOpacity
               style={s.modalCloseBtnFull}
-              activeOpacity={0.7}
+              activeOpacity={0.7} 
               onPress={() => setAvatarPickerVisible(false)}
             >
               <Text style={s.modalCancelText}>Close</Text>
@@ -436,35 +428,6 @@ const ProfileScreen = ({ navigation }: Props) => {
 export default ProfileScreen;
 
 const s = StyleSheet.create({
-  bg: { flex: 1 },
-  container: {
-    flexGrow: 1,
-    paddingTop: 50,
-    paddingHorizontal: 24,
-    paddingBottom: 40,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 10,
-  },
-  iconBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitle: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: '#aeb3c1',
-    letterSpacing: 2.5,
-    textTransform: 'uppercase',
-  },
-
   // ===== Floating avatar =====
   avatarFloatWrap: {
     alignItems: 'center',
@@ -486,20 +449,6 @@ const s = StyleSheet.create({
     shadowOpacity: 0.35,
     shadowRadius: 10,
     elevation: 6,
-  },
-  avatarImage: { width: 88, height: 88, borderRadius: 44 },
-  avatarFallback: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarLetter: {
-    color: '#F5EFE0',
-    fontSize: 34,
-    fontWeight: '800',
   },
   cameraBadge: {
     position: 'absolute',

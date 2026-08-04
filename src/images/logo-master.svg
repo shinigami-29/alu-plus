@@ -1,0 +1,66 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1024" y2="1024" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#1B2560"/>
+      <stop offset="1" stop-color="#12194A"/>
+    </linearGradient>
+    <linearGradient id="potatoBody" x1="0" y1="0" x2="0" y2="1" gradientUnits="objectBoundingBox">
+      <stop offset="0" stop-color="#F0AE49"/>
+      <stop offset="1" stop-color="#E0972A"/>
+    </linearGradient>
+    <linearGradient id="xStroke" x1="0" y1="0" x2="1" y2="1" gradientUnits="objectBoundingBox">
+      <stop offset="0" stop-color="#D6486A"/>
+      <stop offset="1" stop-color="#B31B34"/>
+    </linearGradient>
+  </defs>
+
+  <!-- app-icon canvas -->
+  <rect width="1024" height="1024" rx="224" fill="url(#bg)"/>
+  <rect x="1" y="1" width="1022" height="1022" rx="223" fill="none" stroke="#E0972A" stroke-opacity="0.25" stroke-width="2"/>
+
+  <!-- 3x3 grid, cream rounded bars -->
+  <g stroke="#F5EFE0" stroke-width="34" stroke-linecap="round" opacity="0.92">
+    <line x1="384" y1="180" x2="384" y2="844"/>
+    <line x1="640" y1="180" x2="640" y2="844"/>
+    <line x1="180" y1="384" x2="844" y2="384"/>
+    <line x1="180" y1="640" x2="844" y2="640"/>
+  </g>
+
+  <!-- crimson X, top-left cell -->
+  <g stroke="url(#xStroke)" stroke-width="40" stroke-linecap="round">
+    <line x1="220" y1="220" x2="332" y2="332"/>
+    <line x1="332" y1="220" x2="220" y2="332"/>
+  </g>
+
+  <!-- crimson X, bottom-right cell (diagonal win) -->
+  <g stroke="url(#xStroke)" stroke-width="40" stroke-linecap="round">
+    <line x1="692" y1="692" x2="804" y2="804"/>
+    <line x1="804" y1="692" x2="692" y2="804"/>
+  </g>
+
+  <!-- gold winning line, diagonal -->
+  <line x1="248" y1="248" x2="776" y2="776" stroke="#E0972A" stroke-width="14" stroke-linecap="round" opacity="0.55"/>
+
+  <!-- potato mascot as the O piece, center cell -->
+  <g transform="translate(512,512)">
+    <ellipse cx="0" cy="8" rx="150" ry="118" fill="#000000" opacity="0.18"/>
+    <path d="M -138 -20
+             C -150 -95 -80 -132 -8 -128
+             C 60 -132 140 -100 146 -22
+             C 152 48 108 118 20 132
+             C -60 146 -132 96 -138 -20 Z"
+          fill="url(#potatoBody)" stroke="#B9741E" stroke-width="6"/>
+    <!-- potato eyes (texture dots) -->
+    <circle cx="-58" cy="-46" r="9" fill="#B9741E" opacity="0.55"/>
+    <circle cx="52" cy="-70" r="7" fill="#B9741E" opacity="0.55"/>
+    <circle cx="86" cy="10" r="8" fill="#B9741E" opacity="0.55"/>
+    <circle cx="-90" cy="42" r="7" fill="#B9741E" opacity="0.55"/>
+    <circle cx="10" cy="86" r="8" fill="#B9741E" opacity="0.5"/>
+    <!-- face -->
+    <circle cx="-42" cy="-8" r="15" fill="#12194A"/>
+    <circle cx="38" cy="-14" r="15" fill="#12194A"/>
+    <circle cx="-37" cy="-13" r="5" fill="#F5EFE0"/>
+    <circle cx="43" cy="-19" r="5" fill="#F5EFE0"/>
+    <path d="M -36 34 Q 0 66 40 30" stroke="#12194A" stroke-width="10" stroke-linecap="round" fill="none"/>
+  </g>
+</svg>

@@ -9,8 +9,9 @@ import {
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useGameLogic } from '../GameLogicContext';
-import { DoorOpen, Users, ArrowLeft, RefreshCw } from 'lucide-react-native';
+import { DoorOpen, Users, RefreshCw } from 'lucide-react-native';
 import Layout from '../../components/AppLayout/Layout';
+import { COLORS } from '../../theme/colors';
 
 type Props = {
   navigation: NativeStackNavigationProp<any>;
@@ -74,11 +75,11 @@ const RoomListScreen = ({ navigation }: Props) => {
         <View
           style={[
             s.statusBadge,
-            { backgroundColor: isWaiting ? '#E9FBF0' : '#FDEBEE' },
+            { backgroundColor: isWaiting ? 'rgba(95,214,143,0.18)' : 'rgba(241,145,145,0.18)' },
           ]}
         >
           <Text
-            style={[s.statusText, { color: isWaiting ? '#28C76F' : '#FF4B6E' }]}
+            style={[s.statusText, { color: isWaiting ? '#5FD68F' : '#F19191' }]}
           >
             {isWaiting ? 'Waiting' : 'In Progress'}
           </Text>
@@ -88,17 +89,16 @@ const RoomListScreen = ({ navigation }: Props) => {
   };
 
   return (
-  <Layout withScroll={false}>
-      <View style={s.header}>
-        <TouchableOpacity style={s.backBtn} onPress={() => navigation.goBack()}>
-          <ArrowLeft size={20} color="#182992" />
-        </TouchableOpacity>
-        <Text style={s.headerTitle}>Room List</Text>
-        <TouchableOpacity style={s.backBtn} onPress={handleRefresh}>
-          <RefreshCw size={18} color="#182992" />
-        </TouchableOpacity>
-      </View>
-
+  <Layout
+      withScroll={false}
+      header={{
+        type: 'screen',
+        title: 'Room List',
+        onBack: () => navigation.goBack(),
+        rightIcon: <RefreshCw size={18} color={COLORS.textOnDark} />,
+        onRightPress: handleRefresh,
+      }}
+    >
       {!!multiplayerError && (
         <Text style={s.errorText}>{multiplayerError}</Text>
       )}
@@ -129,34 +129,6 @@ const RoomListScreen = ({ navigation }: Props) => {
 export default RoomListScreen;
 
 const s = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#cbd8f4',
-    paddingTop: 20,
-    paddingHorizontal: 20,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#dde3f0',
-  },
-  headerTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#cdcdf9',
-    marginTop: 16
-  },
-
   errorText: {
     color: '#FF4B6E',
     fontSize: 12,
@@ -174,24 +146,21 @@ const s = StyleSheet.create({
   roomCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: 'rgba(255,255,255,0.08)',
     borderRadius: 18,
     padding: 14,
     gap: 12,
-    shadowColor: '#182992',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
-    elevation: 2,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.14)',
   },
   roomCardDisabled: {
-    opacity: 0.6,
+    backgroundColor: 'rgba(255,255,255,0.04)',
   },
   roomIconWrap: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#E8F0FF',
+    backgroundColor: 'rgba(159,195,245,0.18)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -201,11 +170,11 @@ const s = StyleSheet.create({
   roomName: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#182992',
+    color: COLORS.textOnDark,
   },
   roomHost: {
     fontSize: 12,
-    color: '#9098a8',
+    color: 'rgba(245,239,224,0.6)',
     marginTop: 2,
   },
   statusBadge: {
@@ -228,11 +197,11 @@ const s = StyleSheet.create({
   emptyText: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#cdcdf9',
+    color: COLORS.textOnDark,
   },
   emptySubText: {
     fontSize: 12,
-    color: '#dce0ee',
+    color: 'rgba(245,239,224,0.6)',
     textAlign: 'center',
   },
 });

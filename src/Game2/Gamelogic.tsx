@@ -12,7 +12,7 @@ const activeSessionKeyRef: { current: string | null } = { current: null };
 const sessionStatsRef: {
   current: { wins: number; losses: number; draws: number };
 } = { current: { wins: 0, losses: 0, draws: 0 } };
-// const isLeavingRef: { current: boolean } = { current: false };
+const isLeavingRef: { current: boolean } = { current: false };
 
 const GameLogic = (myAvatarId?: string | null, myPhoto?: string | null) => {
   const [board, setBoard] = useState<BoxCell[]>(Array(9).fill(null));
@@ -89,8 +89,8 @@ const GameLogic = (myAvatarId?: string | null, myPhoto?: string | null) => {
     setMyRoleState(role);
   };
 
-  const isLeavingRef= useRef(false)
-  const processingMoveRef = useRef(false)
+  const isLeavingRef: { current: boolean } = { current: false };
+  const processingMoveRef: { current: boolean } = { current: false }; // ADD THIS
 
   const [opponentName, setOpponentName] = useState('');
   const [opponentPhoto, setOpponentPhoto] = useState<string | null>(null);
@@ -459,26 +459,7 @@ const GameLogic = (myAvatarId?: string | null, myPhoto?: string | null) => {
     roomRef.current.on('value', snap => {
       const data = snap.val();
 
-      if (!data) {
-        roomRef.current?.off();
-        roomRef.current = null;
-        listenedCodeRef.current = null;
-        recordedResultKeyRef.current = null;
-        activeSessionKeyRef.current = null;
-
-        setMyRole(null);
-        setOpponentName('');
-        setOpponentPhoto(null);
-        setOpponentAvatarId(null);
-        setRoomCode('');
-        setGameStarted(false);
-        setMyRematchRequested(false);
-        setOpponentRematchRequested(false);
-        resetGame();
-        setMultiplayerError('Opponent left the game');
-        setScreen('Mode');
-        return;
-      }
+      if (!data) return;
 
       setBoard(normalizeBoard(data.board));
       setCurrentPlayer(data.currentTurn ?? 'X');
@@ -1315,36 +1296,9 @@ const GameLogic = (myAvatarId?: string | null, myPhoto?: string | null) => {
     queueRef.once('value').then(snapshot => {
       const data = snapshot.val() || {};
 
-      const now = Date.now();
-    const STALE_MS = 45000;
-
-      const candidateUid = Object.keys(data).find(uid => {
-      if (uid === myUid) return false;
-      const entry = data[uid];
-      if (entry?.status !== 'waiting') return false;
-      if (
-        typeof entry.timestamp !== 'number' ||
-        now - entry.timestamp > STALE_MS
-      ) {
-        return false; 
-      }
-      return true;
-    });
-
-    Object.keys(data).forEach(uid => {
-      if (uid === myUid) return;
-      const entry = data[uid];
-      if (
-        entry?.status === 'waiting' &&
-        (typeof entry.timestamp !== 'number' ||
-          now - entry.timestamp > STALE_MS)
-      ) {
-        database()
-          .ref(`/matchmaking/${uid}`)
-          .remove()
-          .catch(() => {});
-      }
-    });
+      const candidateUid = Object.keys(data).find(
+        uid => uid !== myUid && data[uid]?.status === 'waiting',
+      );
 
       if (candidateUid) {
         const candidateRef = database().ref(`/matchmaking/${candidateUid}`);

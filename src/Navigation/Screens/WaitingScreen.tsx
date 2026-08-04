@@ -5,14 +5,13 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  Image,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useGameLogic } from '../GameLogicContext';
 import { useAuth } from '../../context/AuthContext';
-import { getAvatarSource } from '../../avatar/Avatar';
 import Layout from '../../components/AppLayout/Layout';
-// import GameLogic from '../../Game2/Gamelogic';
+import Avatar from '../../components/Avatar/Avatar';
+import { COLORS } from '../../theme/colors';
 
 type Props = { navigation: NativeStackNavigationProp<any> };
 
@@ -20,7 +19,6 @@ const WaitingScreen = ({ navigation }: Props) => {
   const { myName, roomCode, roomName, leaveRoom, gameStarted } = useGameLogic();
   const { user, userProfile } = useAuth();
 
-  const myAvatarSource = getAvatarSource(userProfile?.avatarId);
   const myPhoto = userProfile?.photoURL || user?.photoURL || null;
 
   useEffect(() => {
@@ -34,17 +32,16 @@ const WaitingScreen = ({ navigation }: Props) => {
       <View style={s.container}>
       <Text style={s.title}>Waiting Room</Text>
 
-      {myAvatarSource ? (
-        <Image source={myAvatarSource} style={s.avatar} />
-      ) : myPhoto ? (
-        <Image source={{ uri: myPhoto }} style={s.avatar} />
-      ) : (
-        <View style={s.avatarCircle}>
-          <Text style={s.avatarLetter}>
-            {myName?.[0]?.toUpperCase() ?? '?'}
-          </Text>
-        </View>
-      )}
+      <Avatar
+        name={myName}
+        photoURL={myPhoto}
+        avatarId={userProfile?.avatarId}
+        size={72}
+        backgroundColor="#189292"
+        ring
+        ringColor={COLORS.gold}
+        style={{ marginBottom: 8 }}
+      />
       <Text style={s.myNameText} numberOfLines={1}>
         {myName}
       </Text>
@@ -59,7 +56,7 @@ const WaitingScreen = ({ navigation }: Props) => {
         <Text style={s.roomCodeText}>{roomCode}</Text>
       </View>
 
-      <ActivityIndicator size="large" color="#007AFF" />
+      <ActivityIndicator size="large" color={COLORS.gold} />
 
       <Text style={s.shareText}>Waiting for opponent...</Text>
 
@@ -84,50 +81,29 @@ const s = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F5F4F0',
     padding: 20,
   },
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#182992',
+    color: COLORS.textOnDark,
     marginBottom: 24,
-  },
-  avatar: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    marginBottom: 8,
-  },
-  avatarCircle: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: '#189292',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 8,
-  },
-  avatarLetter: {
-    color: '#fff',
-    fontSize: 30,
-    fontWeight: 'bold',
   },
   myNameText: {
     fontSize: 15,
     fontWeight: '700',
-    color: '#182992',
+    color: COLORS.textOnDark,
     marginBottom: 20,
     maxWidth: 200,
   },
   roomInfoBox: {
-    backgroundColor: '#fff',
+    backgroundColor: 'rgba(255,255,255,0.10)',
     width: '100%',
-    borderRadius: 12,
+    borderRadius: 14,
     padding: 16,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: '#dde3f0',
+    borderColor: 'rgba(255,255,255,0.16)',
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -135,24 +111,24 @@ const s = StyleSheet.create({
 
   roomInfoLabel: {
     fontSize: 14,
-    color: '#888',
+    color: 'rgba(245,239,224,0.65)',
     fontWeight: '600',
   },
   roomInfoValue: {
     fontSize: 16,
-    color: '#182992',
+    color: COLORS.textOnDark,
     fontWeight: '700',
   },
   roomCodeText: {
     fontSize: 40,
     fontWeight: 'bold',
-    color: '#182992',
+    color: COLORS.gold,
     letterSpacing: 4,
     marginVertical: 10,
   },
   shareText: {
     fontSize: 13,
-    color: '#888',
+    color: 'rgba(245,239,224,0.6)',
     textAlign: 'center',
     marginTop: 8,
     marginBottom: 4,
@@ -160,10 +136,13 @@ const s = StyleSheet.create({
   },
   backBtn: {
     marginTop: 16,
-    padding: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.08)',
   },
   backText: {
-    color: '#666',
+    color: COLORS.textOnDark,
     fontSize: 16,
     fontWeight: '600',
   },

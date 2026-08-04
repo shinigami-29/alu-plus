@@ -4,30 +4,27 @@ import {
   View,
   Text,
   TouchableOpacity,
-  StyleSheet,
-  Image,
-  ImageBackground,
-  Modal,
-  BackHandler,
+  StyleSheet, Modal,
+  BackHandler
 } from 'react-native';
 import { useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
 import { useGameLogic } from '../GameLogicContext';
-import { getAvatarSource } from '../../avatar/Avatar';
 import {
   Trophy,
   Mail,
   Users,
   Globe,
-  ChevronRight,
   Shuffle,
   History,
   DoorOpen,
   LogOut,
 } from 'lucide-react-native';
 import Layout from '../../components/AppLayout/Layout';
+import GradientCard from '../../components/GradientCard/GradientCard';
+import SectionTitle from '../../components/SectionTitle/SectionTitle';
 
 type Props = { navigation: NativeStackNavigationProp<any> };
 
@@ -165,23 +162,7 @@ const ModeScreen = ({ navigation }: Props) => {
     user?.displayName ||
     user?.email?.split('@')[0] ||
     'Guest';
-  const avatarSource = getAvatarSource(userProfile?.avatarId);
   const photoURL = userProfile?.photoURL || user?.photoURL || null;
-  const AvatarComponent = () => {
-    if (avatarSource) {
-      return <Image source={avatarSource} style={s.avatarImage} />;
-    }
-    if (photoURL) {
-      return <Image source={{ uri: photoURL }} style={s.avatarImage} />;
-    }
-    return (
-      <View style={s.avatarCircle}>
-        <Text style={s.avatarLetter}>
-          {displayName?.[0]?.toUpperCase() ?? 'G'}
-        </Text>
-      </View>
-    );
-  };
   React.useEffect(() => {
     if (!myName) {
       if (userProfile?.username) {
@@ -213,48 +194,75 @@ const ModeScreen = ({ navigation }: Props) => {
     findRandomMatch();
   };
   return (
-   <Layout>
+   <Layout
+      header={{
+        type: 'home',
+        title: 'आलु प्लस',
+        onAvatarPress: () => navigation.navigate('Profile'),
+        avatarName: displayName,
+        avatarPhotoURL: photoURL,
+        avatarId: userProfile?.avatarId,
+        notificationCount,
+      }}
+    >
       <InviteToast
         invitations={incomingInvitations}
         friendRequests={incomingFriendRequests}
         navigation={navigation}
       />
-      {/* Top bar */}
-      <View style={s.topBar}>
-        <TouchableOpacity
-          style={s.profileBtn}
-          onPress={() => navigation.navigate('Profile')}
-        >
-          <AvatarComponent />
-        </TouchableOpacity>
+
+      {/* Player card: greeting + stats grouped in one glass panel */}
+      <View style={s.playerCard}>
+        <Text style={s.greetingLabel}>Welcome back,</Text>
+        <Text style={s.greetingName} numberOfLines={1}>
+          {displayName}
+        </Text>
+        <View style={s.statsRow}>
+          <View style={s.statCol}>
+            <Text style={[s.statValue, { color: '#5FD68F' }]}>
+              {userProfile?.wins ?? 0}
+            </Text>
+            <Text style={s.statLabel}>Wins</Text>
+          </View>
+          <View style={s.statDivider} />
+          <View style={s.statCol}>
+            <Text style={[s.statValue, { color: '#F19191' }]}>
+              {userProfile?.losses ?? 0}
+            </Text>
+            <Text style={s.statLabel}>Losses</Text>
+          </View>
+          <View style={s.statDivider} />
+          <View style={s.statCol}>
+            <Text style={[s.statValue, { color: '#F2C879' }]}>
+              {userProfile?.draw ?? 0}
+            </Text>
+            <Text style={s.statLabel}>Draws</Text>
+          </View>
+        </View>
       </View>
-      {/* Title */}
-      <View style={s.titleWrap}>
-        <Text style={s.title}>आलु प्लस</Text>
-        <View style={s.titleUnderline} />
-      </View>
+
       {/* Leaderboard + Invitation + Match History + Room List */}
-      <View style={s.quickRow}>
+      <View style={s.quickGrid}>
         <TouchableOpacity
-        activeOpacity={0.8}
-          style={s.quickBtn}
+          style={s.quickTile}
+          activeOpacity={0.85}
           onPress={() => navigation.navigate('Leaderboard')}
         >
-          <View style={[s.quickIconWrap, { backgroundColor: 'rgba(255,178,29,0.22)' }]}>
-            <Trophy size={24} color="#E0972A" />
+          <View style={[s.quickIconWrap, { backgroundColor: 'rgba(242,200,121,0.18)' }]}>
+            <Trophy size={24} color="#F2C879" />
           </View>
-          <Text style={s.quickBtnText} numberOfLines={1}>
+          <Text style={s.quickTileText} numberOfLines={1}>
             Leaderboard
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={s.quickBtn}
-          activeOpacity={0.8}
+          style={s.quickTile}
+          activeOpacity={0.85}
           onPress={() => navigation.navigate('Invitation')}
         >
-          <View style={{ position: 'relative' }}>
-            <View style={[s.quickIconWrap, { backgroundColor: 'rgba(0,56,147,0.16)' }]}>
-              <Mail size={24} color="#003893" />
+          <View>
+            <View style={[s.quickIconWrap, { backgroundColor: 'rgba(159,195,245,0.18)' }]}>
+              <Mail size={24} color="#9FC3F5" />
             </View>
             {notificationCount > 0 && (
               <View style={s.notifBadge}>
@@ -264,83 +272,89 @@ const ModeScreen = ({ navigation }: Props) => {
               </View>
             )}
           </View>
-          <Text style={s.quickBtnText} numberOfLines={1}>
+          <Text style={s.quickTileText} numberOfLines={1}>
             Invitation
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={s.quickBtn}
-          activeOpacity={0.8}
+          style={s.quickTile}
+          activeOpacity={0.85}
           onPress={() => navigation.navigate('MatchHistory')}
         >
-          <View style={[s.quickIconWrap, { backgroundColor: 'rgba(220,20,60,0.14)' }]}>
-            <History size={24} color="#B31B34" />
+          <View style={[s.quickIconWrap, { backgroundColor: 'rgba(241,145,145,0.18)' }]}>
+            <History size={24} color="#F19191" />
           </View>
-          <Text style={s.quickBtnText} numberOfLines={1}>
+          <Text style={s.quickTileText} numberOfLines={1}>
             Match History
           </Text>
         </TouchableOpacity>
         <TouchableOpacity
-          style={s.quickBtn}
-          activeOpacity={0.8}
+          style={s.quickTile}
+          activeOpacity={0.85}
           onPress={() => navigation.navigate('RoomList')}
         >
-          <View style={[s.quickIconWrap, { backgroundColor: 'rgba(35, 255, 94, 0.16)' }]}>
-            <DoorOpen size={24} color='#1f8552' />
+          <View style={[s.quickIconWrap, { backgroundColor: 'rgba(127,217,166,0.18)' }]}>
+            <DoorOpen size={24} color="#7FD9A6" />
           </View>
-          <Text style={s.quickBtnText} numberOfLines={1}>
+          <Text style={s.quickTileText} numberOfLines={1}>
             Room List
           </Text>
         </TouchableOpacity>
       </View>
+
       {/* Choose how you want to play */}
-      <Text style={s.chooseText}>Choose how you want to play</Text>
-      {/* Mode buttons */}
-      <View style={s.center}>
+      <SectionTitle title="Choose how you want to play" />
+
+      {/* Mode tiles — one hero card + two paired cards */}
+      <TouchableOpacity
+        style={s.heroTouchable}
+        activeOpacity={0.88}
+        onPress={() => navigation.navigate('Multiplayer')}
+      >
+        <GradientCard
+          colors={['#2A5FCB', '#0F1E63']}
+          borderRadius={22}
+          style={s.heroTile}
+        >
+          <View style={s.heroIconWrap}>
+            <Globe size={26} color="#FFFFFF" />
+          </View>
+          <Text style={s.tileTitle}>Play with Friends</Text>
+          <Text style={s.tileSubtitle}>Online — invite or join a room</Text>
+        </GradientCard>
+      </TouchableOpacity>
+
+      <View style={s.tileRow}>
         <TouchableOpacity
-          style={s.btn}
+          style={s.tileHalf}
+          activeOpacity={0.88}
           onPress={() => navigation.navigate('Game')}
-          activeOpacity={0.8}
         >
-          <View style={[s.accentBar, { backgroundColor: '#DC143C' }]} />
-          <View style={[s.btnIconCircle, { backgroundColor: 'rgba(220,20,60,0.14)' }]}>
-            <Users size={22} color="#B31B34" />
-          </View>
-          <View style={s.btnTextWrap}>
-            <Text style={s.btnText}>2 Player</Text>
-            <Text style={s.btnSubText}>Play locally, take turns</Text>
-          </View>
-          <ChevronRight size={20} color="#B31B34" />
+          <GradientCard
+            colors={['#E15C74', '#8B1029']}
+            borderRadius={20}
+            style={s.smallTile}
+          >
+            <Users size={24} color="#FFFFFF" />
+            <Text style={s.tileTitleSmall} numberOfLines={1}>2 Player</Text>
+            <Text style={s.tileSubtitleSmall} numberOfLines={2}>Take turns, same device</Text>
+          </GradientCard>
         </TouchableOpacity>
+
         <TouchableOpacity
-          style={s.btn}
-          onPress={() => navigation.navigate('Multiplayer')}
-          activeOpacity={0.8}
-        >
-          <View style={[s.accentBar, { backgroundColor: '#003893' }]} />
-          <View style={[s.btnIconCircle, { backgroundColor: 'rgba(0,56,147,0.14)' }]}>
-            <Globe size={22} color="#003893" />
-          </View>
-          <View style={s.btnTextWrap}>
-            <Text style={s.btnText}>Play with Friends</Text>
-            <Text style={s.btnSubText}>Online, invite or join</Text>
-          </View>
-          <ChevronRight size={20} color="#003893" />
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={s.btn}
+          style={s.tileHalf}
+          activeOpacity={0.88}
           onPress={handleRandomMatch}
-          activeOpacity={0.8}
         >
-          <View style={[s.accentBar, { backgroundColor: '#E0972A' }]} />
-          <View style={[s.btnIconCircle, { backgroundColor: 'rgba(224,151,42,0.16)' }]}>
-            <Shuffle size={22} color="#C97F1E" />
-          </View>
-          <View style={s.btnTextWrap}>
-            <Text style={s.btnText}>Random Match</Text>
-            <Text style={s.btnSubText}>Play with a stranger</Text>
-          </View>
-          <ChevronRight size={20} color="#C97F1E" />
+          <GradientCard
+            colors={['#F0AE49', '#B9741E']}
+            borderRadius={20}
+            style={s.smallTile}
+          >
+            <Shuffle size={24} color="#FFFFFF" />
+            <Text style={s.tileTitleSmall} numberOfLines={1}>Random Match</Text>
+            <Text style={s.tileSubtitleSmall} numberOfLines={2}>Play a stranger</Text>
+          </GradientCard>
         </TouchableOpacity>
       </View>
       {/* Exit Confirmation Modal */}
@@ -389,185 +403,156 @@ const s = StyleSheet.create({
     paddingHorizontal: 20,
   },
 
-  topBar: {
+  playerCard: {
+    backgroundColor: 'rgba(255,255,255,0.10)',
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.16)',
+    paddingVertical: 16,
+    paddingHorizontal: 18,
+    marginTop: 4,
+    marginBottom: 14,
+  },
+  greetingLabel: {
+    fontSize: 12,
+    color: 'rgba(245,240,224,0.75)',
+    fontWeight: '500',
+  },
+  greetingName: {
+    fontSize: 18,
+    color: '#FFF6E8',
+    fontWeight: '800',
+    marginTop: 2,
+  },
+  statsRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  profileBtn: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: '#FFFDF8',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#E0972A',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.2,
-    shadowRadius: 6,
-    elevation: 4,
-  },
-  avatarCircle: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#B31B34',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarLetter: {
-    color: '#fff',
-    fontWeight: 'bold',
-    fontSize: 15,
-  },
-  avatarImage: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-  },
-  titleWrap: {
-    alignItems: 'center',
     marginTop: 14,
-    marginBottom: 18,
   },
-  title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#FFF6E8',
-    letterSpacing: 1,
-    textShadowColor: 'rgba(150,20,40,0.45)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 6,
+  statCol: {
+    flex: 1,
+    alignItems: 'center',
   },
-  titleUnderline: {
-    marginTop: 8,
-    width: 56,
-    height: 4,
-    borderRadius: 2,
-    backgroundColor: '#E0972A',
+  statDivider: {
+    width: 1,
+    height: 26,
+    backgroundColor: 'rgba(255,255,255,0.16)',
   },
-  quickRow: {
+  statValue: {
+    fontSize: 17,
+    fontWeight: '800',
+  },
+  statLabel: {
+    fontSize: 10,
+    color: 'rgba(245,240,224,0.65)',
+    fontWeight: '700',
+    marginTop: 1,
+    letterSpacing: 0.4,
+  },
+  quickGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
     justifyContent: 'space-between',
-    marginTop: 6,
-    marginBottom: 10,
     rowGap: 12,
+    marginBottom: 28,
   },
-  quickBtn: {
+  quickTile: {
     width: '48%',
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: 'rgba(255,251,244,0.88)',
-    borderRadius: 16,
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    gap: 10,
+    gap: 12,
+    backgroundColor: 'rgba(255,255,255,0.10)',
+    borderRadius: 18,
     borderWidth: 1,
-    borderColor: 'rgba(224,151,42,0.35)',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 3,
+    borderColor: 'rgba(255,255,255,0.16)',
+    paddingVertical: 14,
+    paddingHorizontal: 14,
   },
   quickIconWrap: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 44,
+    height: 44,
+    borderRadius: 14,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  quickBtnText: {
+  quickTileText: {
+    flex: 1,
+    fontSize: 12.5,
+    fontWeight: '700',
+    color: 'rgba(245,240,224,0.92)',
+  },
+  heroTouchable: {
+    width: '100%',
+  },
+  heroTile: {
+    width: '100%',
+    paddingVertical: 22,
+    paddingHorizontal: 20,
+    marginBottom: 14,
+  },
+  heroIconWrap: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.18)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
+  },
+  tileTitle: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: 19,
+  },
+  tileSubtitle: {
+    color: 'rgba(255,255,255,0.78)',
     fontSize: 13,
-    fontWeight: '700',
-    color: '#3A2A1E',
-    flexShrink: 1,
+    marginTop: 3,
+    fontWeight: '500',
   },
-  center: {
-    flex: 1,
-  justifyContent: 'flex-start',
-  gap: 14,
-  paddingTop: 10,
-  paddingBottom: 20,
-  },
-  btn: {
+  tileRow: {
     flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 15,
-    paddingHorizontal: 16,
-    borderRadius: 18,
-    gap: 14,
-    backgroundColor: 'rgba(255,251,244,0.9)',
-    borderWidth: 1,
-    borderColor: 'rgba(224,151,42,0.3)',
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 5 },
-    shadowOpacity: 0.14,
-    shadowRadius: 9,
-    elevation: 5,
+    gap: 12,
+    marginBottom: 20,
   },
-  accentBar: {
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    bottom: 0,
-    width: 7,
-  },
-  btnIconCircle: {
-    width: 46,
-    height: 46,
-    borderRadius: 23,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginLeft: 6,
-    marginHorizontal: 8,
-  },
-  btnTextWrap: {
+  tileHalf: {
     flex: 1,
   },
-  btnText: {
-    color: '#3A2A1E',
-    fontWeight: '700',
-    fontSize: 16,
+  smallTile: {
+    paddingVertical: 18,
+    paddingHorizontal: 16,
+    height: 132,
+    justifyContent: 'center',
   },
-  btnSubText: {
-    color: '#8A7A6A',
-    fontSize: 12,
+  tileTitleSmall: {
+    color: '#FFFFFF',
+    fontWeight: '800',
+    fontSize: 15,
+    marginTop: 10,
+  },
+  tileSubtitleSmall: {
+    color: 'rgba(255,255,255,0.78)',
+    fontSize: 11,
     marginTop: 2,
     fontWeight: '500',
   },
-  chooseText: {
-    fontSize: 13,
-    color: '#FFF3DD',
-    fontWeight: '600',
-    textAlign: 'center',
-    marginTop: 70,
-    marginBottom: 5,
-    textShadowColor: 'rgba(0,0,0,0.3)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
-  },
   notifBadge: {
     position: 'absolute',
-    top: -4,
-    right: -4,
-    minWidth: 18,
-    height: 18,
-    borderRadius: 9,
+    top: -6,
+    right: -8,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
     backgroundColor: '#DC143C',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 4,
+    paddingHorizontal: 3,
     borderWidth: 1.5,
-    borderColor: '#fff',
+    borderColor: '#12194A',
   },
   notifBadgeText: {
     color: '#fff',
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: 'bold',
   },
   inviteToast: {

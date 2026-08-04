@@ -6,7 +6,7 @@ import { useAuth } from '../context/AuthContext';
 
 type GameLogicType = ReturnType<typeof GameLogic>;
 
-const GameLogicContext = createContext<any>(null);
+const GameLogicContext = createContext<GameLogicType | any>(null);
 
 export const navigationRef = React.createRef<NavigationContainerRef<any>>();
 
@@ -54,7 +54,7 @@ export const GameLogicProvider = ({children}: {children: React.ReactNode}) => {
 };
 
 // export const useGameLogic = () => useContext(GameLogicContext);
-export const useGameLogic = () => {
+export const useGameLogic = (): GameLogicType => {
   const ctx = useContext(GameLogicContext);
   if (!ctx) {
     throw new Error('useGameLogic must be used within GameLogicProvider');

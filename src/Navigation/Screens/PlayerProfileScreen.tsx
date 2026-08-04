@@ -5,7 +5,6 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  Image,
   ActivityIndicator,
   Modal,
   Animated,
@@ -16,15 +15,13 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
 import { useGameLogic } from '../GameLogicContext';
 import {
-  ArrowLeft,
-  User,
   Trash2,
   Send,
   AlertTriangle,
   CheckCircle2,
 } from 'lucide-react-native';
-import { getAvatarSource } from '../../avatar/Avatar';
 import Layout from '../../components/AppLayout/Layout';
+import Avatar from '../../components/Avatar/Avatar';
 
 type Props = {
   navigation: NativeStackNavigationProp<any>;
@@ -44,8 +41,6 @@ const PlayerProfileScreen = ({ navigation, route }: Props) => {
   const { name, uid, photo, avatarId } = (route.params as any) || {};
   const { removeFriend, fetchPlayerStatsByUid, sendInvitation } =
     useGameLogic();
-
-  const avatarSource = getAvatarSource(avatarId);
 
   const [stats, setStats] = useState<{
     wins: number;
@@ -121,32 +116,18 @@ const PlayerProfileScreen = ({ navigation, route }: Props) => {
       : RANKS.find((r) => winRate >= r.min)!;
 
   return (
-    <Layout>
+    <Layout
+      header={{
+        type: 'screen',
+        title: 'Player Card',
+        onBack: () => navigation.goBack(),
+      }}
+    >
        <View style={s.container}>
-        {/* Header */}
-        <View style={s.header}>
-          <TouchableOpacity
-            style={s.iconBtn}
-            onPress={() => navigation.goBack()}
-          >
-            <ArrowLeft size={19} color="#F5EFE0" />
-          </TouchableOpacity>
-          <Text style={s.headerTitle}>Player Card</Text>
-          <View style={{ width: 36 }} />
-        </View>
-
         {/* ===== Floating avatar + rank ring ===== */}
         <View style={s.avatarFloatWrap}>
           <View style={[s.avatarRing, { borderColor: rank.color }]}>
-            {avatarSource ? (
-              <Image source={avatarSource} style={s.avatar} />
-            ) : photo ? (
-              <Image source={{ uri: photo }} style={s.avatar} />
-            ) : (
-              <View style={s.avatarFallback}>
-                <User size={32} color="#F5EFE0" />
-              </View>
-            )}
+            <Avatar name={name} photoURL={photo} avatarId={avatarId} size={88} />
           </View>
 
           {/* Rank badge overlapping the ring, like a level/tier chip */}
@@ -321,32 +302,9 @@ const PlayerProfileScreen = ({ navigation, route }: Props) => {
 export default PlayerProfileScreen;
 
 const s = StyleSheet.create({
-  bg: { flex: 1 },
   container: {
     flex: 1,
-    paddingTop: 50,
     paddingHorizontal: 24,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 10,
-  },
-  iconBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  headerTitle: {
-    fontSize: 13,
-    fontWeight: '800',
-    color: '#aeb3c1',
-    letterSpacing: 2.5,
-    textTransform: 'uppercase',
   },
 
   // ===== Floating avatar + rank badge =====
@@ -368,15 +326,6 @@ const s = StyleSheet.create({
     shadowOpacity: 0.35,
     shadowRadius: 10,
     elevation: 6,
-  },
-  avatar: { width: 88, height: 88, borderRadius: 44 },
-  avatarFallback: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    backgroundColor: 'rgba(255,255,255,0.06)',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   rankPill: {
     flexDirection: 'row',
