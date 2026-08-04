@@ -5,12 +5,12 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  Clipboard,
   Alert,
   ActivityIndicator,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useGameLogic } from '../GameLogicContext';
+import Clipboard from '@react-native-clipboard/clipboard';
 import { Copy, Users, DoorOpen, Crown } from 'lucide-react-native';
 import Layout from '../../components/AppLayout/Layout';
 import Avatar from '../../components/Avatar/Avatar';

@@ -3192,6 +3192,27 @@ PODS:
     - ReactNativeDependencies
   - ReactNativeDependencies (0.85.3)
   - RecaptchaInterop (101.0.0)
+  - RNCClipboard (1.16.3):
+    - hermes-engine
+    - RCTRequired
+    - RCTTypeSafety
+    - React-Core
+    - React-debug
+    - React-Fabric
+    - React-featureflags
+    - React-graphics
+    - React-ImageManager
+    - React-jsi
+    - React-NativeModulesApple
+    - React-RCTFabric
+    - React-renderercss
+    - React-rendererdebug
+    - React-utils
+    - ReactCodegen
+    - ReactCommon/turbomodule/bridging
+    - ReactCommon/turbomodule/core
+    - ReactNativeDependencies
+    - Yoga
   - RNFBApp (25.1.0):
     - Firebase/CoreOnly (= 12.15.0)
     - hermes-engine
@@ -3472,6 +3493,7 @@ DEPENDENCIES:
   - ReactCodegen (from `build/generated/ios/ReactCodegen`)
   - ReactCommon/turbomodule/core (from `../node_modules/react-native/ReactCommon`)
   - ReactNativeDependencies (from `../node_modules/react-native/third-party-podspecs/ReactNativeDependencies.podspec`)
+  - "RNCClipboard (from `../node_modules/@react-native-clipboard/clipboard`)"
   - "RNFBApp (from `../node_modules/@react-native-firebase/app`)"
   - "RNFBAuth (from `../node_modules/@react-native-firebase/auth`)"
   - "RNFBDatabase (from `../node_modules/@react-native-firebase/database`)"
@@ -3668,6 +3690,8 @@ EXTERNAL SOURCES:
     :path: "../node_modules/react-native/ReactCommon"
   ReactNativeDependencies:
     :podspec: "../node_modules/react-native/third-party-podspecs/ReactNativeDependencies.podspec"
+  RNCClipboard:
+    :path: "../node_modules/@react-native-clipboard/clipboard"
   RNFBApp:
     :path: "../node_modules/@react-native-firebase/app"
   RNFBAuth:
@@ -3793,6 +3817,7 @@ SPEC CHECKSUMS:
   ReactCommon: ce99fde236d8b6584b31f96ed4cd84b5d6727e45
   ReactNativeDependencies: 9a00d42d226e5e3986432d73aceebeea38bbf11b
   RecaptchaInterop: 11e0b637842dfb48308d242afc3f448062325aba
+  RNCClipboard: 26237d7fcfc6359e674655b02d03d6178d63d085
   RNFBApp: 413e6d3c543d181f8754ae12ed024753a75c35c7
   RNFBAuth: 93acdd80b66c2dcc52e936d18b0ebdfec5cf9091
   RNFBDatabase: 12ae906ca944891c0cc25cf7db2c1f6b6025f233
@@ -3802,6 +3827,6 @@ SPEC CHECKSUMS:
   RNSVG: 172a2719af10d149d611ae2f090d4f07cf79b42d
   Yoga: 9d8e8094a2bed6a175d9e6001a0546d5dae663ee
 
-PODFILE CHECKSUM: d5a252f3ca668100896d0630bf29dc06f48afd53
+PODFILE CHECKSUM: 5e9956edd839ac14eba8e5d2ee964ee4efc4b2a4
 
 COCOAPODS: 1.16.2

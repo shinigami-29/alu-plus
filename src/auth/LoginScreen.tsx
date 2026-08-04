@@ -69,19 +69,6 @@ const LoginScreen = ({ navigation }: Props) => {
       })
       .finally(() => setLoading(false));
   };
-
-  // const handleGoogleLogin = () => {
-  //   setLoading(true);
-  //   loginWithGoogle()
-  //     .then(() => {
-  //       navigation.replace('Mode');
-  //     })
-  //     .catch(err => {
-  //       showAlert('Google Login Failed', getFriendlyAuthError(err.code));
-  //     })
-  //     .finally(() => setLoading(false));
-  // };
-
   const handleGoogleLogin = () => {
     setLoading(true);
     loginWithGoogle()

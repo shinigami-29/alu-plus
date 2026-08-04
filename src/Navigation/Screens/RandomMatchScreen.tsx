@@ -129,19 +129,6 @@ const RandomMatchScreen = ({ navigation }: Props) => {
     }
   }, [screen]);
 
-  const statusRef = useRef(randomMatchStatus);
-useEffect(() => {
-  statusRef.current = randomMatchStatus;
-}, [randomMatchStatus]);
-
-useEffect(() => {
-  return () => {
-    if (statusRef.current === 'searching') {
-      cancelRandomMatch();
-    }
-  };
-}, []);
-
   const handleCancel = () => {
     cancelRandomMatch();
     navigation.goBack();

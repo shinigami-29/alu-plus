@@ -523,7 +523,7 @@ const s = StyleSheet.create({
   title: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#FFF6E8',
+    color:'#E0972A',
     letterSpacing: 1,
     textShadowColor: 'rgba(150,20,40,0.45)',
     textShadowOffset: { width: 0, height: 2 },
