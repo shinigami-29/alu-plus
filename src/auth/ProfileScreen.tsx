@@ -6,16 +6,15 @@ import {
   StyleSheet,
   Image,
   TextInput,
-  ScrollView,
   ActivityIndicator,
   Modal,
-  ImageBackground,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth } from '../context/AuthContext';
 import { useFocusEffect } from '@react-navigation/native';
 import { AVATAR_LIST, getAvatarSource } from '../avatar/Avatar';
 import { ArrowLeft, Pencil, Check, X, LogOut } from 'lucide-react-native';
+import Layout from '../components/AppLayout/Layout';
 
 type Props = { navigation: NativeStackNavigationProp<any> };
 
@@ -113,13 +112,6 @@ const ProfileScreen = ({ navigation }: Props) => {
       .finally(() => setAvatarSaving(false));
   };
 
-  // "My Photo" option — email/Google/Facebook login bata aaeko photo
-  // lai wapas select garna milos bhanera. photoURL field lai chuँdaina
-  // (userProfile.photoURL ma already save vaisakeko cha), matra
-  // avatarId lai null garincha taki avatarSource fallback huna
-  // rokिiyos ra photo dekhinchha (ProfileScreen ko `photoURL` variable
-  // ko logic: avatarSource > photoURL > letter, teso huँda avatarId
-  // null vayepachi photoURL automatically dekhincha).
   const handleSelectMyPhoto = () => {
     if (!photoURL) return;
     setAvatarSaving(true);
@@ -139,321 +131,305 @@ const ProfileScreen = ({ navigation }: Props) => {
   );
 
   return (
-    <ImageBackground
-      source={require('../images/bg3.png')}
-      style={s.bg}
-      resizeMode="cover"
-    >
-      <ScrollView contentContainerStyle={s.container}>
-        {/* Header */}
-        <View style={s.header}>
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            style={s.iconBtn}
-          >
-            <ArrowLeft size={19} color="#F5EFE0" />
-          </TouchableOpacity>
-          <Text style={s.headerTitle}>My Profile</Text>
-          <View style={{ width: 36 }} />
-        </View>
-
-        {/* ===== Floating avatar ===== */}
-        <View style={s.avatarFloatWrap}>
-          <TouchableOpacity
-            onPress={() => setAvatarPickerVisible(true)}
-            style={s.avatarTouchable}
-            activeOpacity={0.85}
-          >
-            <View style={s.avatarRing}>
-              {avatarSource ? (
-                <Image source={avatarSource} style={s.avatarImage} />
-              ) : photoURL ? (
-                <Image source={{ uri: photoURL }} style={s.avatarImage} />
-              ) : (
-                <View style={s.avatarFallback}>
-                  <Text style={s.avatarLetter}>
-                    {displayName?.[0]?.toUpperCase() ?? 'G'}
-                  </Text>
-                </View>
-              )}
-            </View>
-            <View style={s.cameraBadge}>
-              <Pencil size={12} color="#12194A" />
-            </View>
-          </TouchableOpacity>
-        </View>
-
-        {/* ===== Info card ===== */}
-        <View style={s.card}>
-          {/* Name */}
-          <View style={s.fieldBlock}>
-            <Text style={s.cardLabel}>Name</Text>
-            {editingName ? (
-              <View style={s.editRow}>
-                <TextInput
-                  style={s.nameInput}
-                  value={newName}
-                  onChangeText={setNewName}
-                  placeholderTextColor="#6B7196"
-                  autoFocus
-                />
-                <TouchableOpacity
-                  style={s.saveBtn}
-                  onPress={handleSaveName}
-                  disabled={loading}
-                >
-                  {loading ? (
-                    <ActivityIndicator color="#12194A" size="small" />
-                  ) : (
-                    <Check size={17} color="#12194A" />
-                  )}
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={s.cancelBtn}
-                  onPress={() => {
-                    setEditingName(false);
-                    setNewName(displayName);
-                  }}
-                >
-                  <X size={17} color="#F5EFE0" />
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <View style={s.nameRow}>
-                <Text style={s.nameText}>{displayName}</Text>
-                <TouchableOpacity
-                  style={s.editBtn}
-                  onPress={() => setEditingName(true)}
-                >
-                  <Pencil size={13} color="#E0972A" />
-                  <Text style={s.editBtnText}>Edit</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-          </View>
-
-          <View style={s.divider} />
-
-          {/* Email */}
-          {user?.email ? (
-            <>
-              <View style={s.fieldBlock}>
-                <Text style={s.cardLabel}>Email</Text>
-                <Text style={s.cardValue}>{user.email}</Text>
-              </View>
-              <View style={s.divider} />
-            </>
-          ) : null}
-
-          {/* Username */}
-          <View style={s.fieldBlock}>
-            <Text style={s.cardLabel}>Username</Text>
-            {editingUsername ? (
-              <View style={s.editRow}>
-                <TextInput
-                  style={s.nameInput}
-                  value={newUsername}
-                  onChangeText={setNewUsername}
-                  autoCapitalize="none"
-                  placeholderTextColor="#6B7196"
-                  autoFocus
-                />
-                <TouchableOpacity
-                  style={s.saveBtn}
-                  onPress={handleSaveUsername}
-                  disabled={loading}
-                >
-                  {loading ? (
-                    <ActivityIndicator color="#12194A" size="small" />
-                  ) : (
-                    <Check size={17} color="#12194A" />
-                  )}
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={s.cancelBtn}
-                  onPress={() => {
-                    setEditingUsername(false);
-                    setNewUsername(userProfile?.username || '');
-                  }}
-                >
-                  <X size={17} color="#F5EFE0" />
-                </TouchableOpacity>
-              </View>
-            ) : (
-              <View style={s.nameRow}>
-                <Text style={s.nameText}>
-                  @{userProfile?.username || 'not set'}
-                </Text>
-                <TouchableOpacity
-                  style={s.editBtn}
-                  onPress={() => setEditingUsername(true)}
-                >
-                  <Pencil size={13} color="#E0972A" />
-                  <Text style={s.editBtnText}>Edit</Text>
-                </TouchableOpacity>
-              </View>
-            )}
-          </View>
-        </View>
-
-        {/* ===== Stats ===== */}
-        <View style={s.chipsRow}>
-          <View style={[s.chip, s.chipWin]}>
-            <Text style={s.chipValue}>{userProfile?.wins ?? 0}</Text>
-            <Text style={s.chipLabel}>WINS</Text>
-          </View>
-          <View style={[s.chip, s.chipLoss]}>
-            <Text style={s.chipValue}>{userProfile?.losses ?? 0}</Text>
-            <Text style={s.chipLabel}>LOSSES</Text>
-          </View>
-          <View style={[s.chip, s.chipDraw]}>
-            <Text style={s.chipValue}>{userProfile?.draw ?? 0}</Text>
-            <Text style={s.chipLabel}>DRAWS</Text>
-          </View>
-        </View>
-
-        {/* Logout */}
-        <TouchableOpacity
-          style={s.logoutBtn}
-          activeOpacity={0.85}
-          onPress={handleLogout}
-        >
-          <LogOut size={17} color="#F5EFE0" />
-          <Text style={s.logoutBtnText}>Logout</Text>
+    <Layout>
+      {/* Header */}
+      <View style={s.header}>
+        <TouchableOpacity onPress={() => navigation.goBack()} style={s.iconBtn}>
+          <ArrowLeft size={19} color="#F5EFE0" />
         </TouchableOpacity>
+        <Text style={s.headerTitle}>My Profile</Text>
+        <View style={{ width: 36 }} />
+      </View>
 
-        {/* ---- Logout confirmation popup ---- */}
-        <Modal
-          visible={logoutModalVisible}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setLogoutModalVisible(false)}
+      {/* ===== Floating avatar ===== */}
+      <View style={s.avatarFloatWrap}>
+        <TouchableOpacity
+          onPress={() => setAvatarPickerVisible(true)}
+          style={s.avatarTouchable}
+          activeOpacity={0.85}
         >
-          <View style={s.modalOverlay}>
-            <View style={s.modalBox}>
-              <Text style={s.modalTitle}>Logout</Text>
-              <Text style={s.modalMessage}>Logout garne?</Text>
-              <View style={s.modalBtnRow}>
-                <TouchableOpacity
-                  style={s.modalCancelBtn}
-                  onPress={() => setLogoutModalVisible(false)}
-                >
-                  <Text style={s.modalCancelText}>Cancel</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={s.modalDangerBtn}
-                  onPress={confirmLogout}
-                >
-                  <Text style={s.modalDangerText}>Logout</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          </View>
-        </Modal>
-
-        {/* ---- Success / Error popup ---- */}
-        <Modal
-          visible={messageModal.visible}
-          transparent
-          animationType="fade"
-          onRequestClose={() =>
-            setMessageModal(prev => ({ ...prev, visible: false }))
-          }
-        >
-          <View style={s.modalOverlay}>
-            <View style={s.modalBox}>
-              <View
-                style={[
-                  s.iconCircle,
-                  messageModal.type === 'success'
-                    ? s.iconCircleSuccess
-                    : s.iconCircleError,
-                ]}
-              >
-                <Text style={s.iconText}>
-                  {messageModal.type === 'success' ? '✓' : '!'}
+          <View style={s.avatarRing}>
+            {avatarSource ? (
+              <Image source={avatarSource} style={s.avatarImage} />
+            ) : photoURL ? (
+              <Image source={{ uri: photoURL }} style={s.avatarImage} />
+            ) : (
+              <View style={s.avatarFallback}>
+                <Text style={s.avatarLetter}>
+                  {displayName?.[0]?.toUpperCase() ?? 'G'}
                 </Text>
               </View>
-              <Text style={s.modalTitle}>{messageModal.title}</Text>
-              <Text style={s.modalMessage}>{messageModal.message}</Text>
+            )}
+          </View>
+          <View style={s.cameraBadge}>
+            <Pencil size={12} color="#12194A" />
+          </View>
+        </TouchableOpacity>
+      </View>
+
+      {/* ===== Info card ===== */}
+      <View style={s.card}>
+        {/* Name */}
+        <View style={s.fieldBlock}>
+          <Text style={s.cardLabel}>Name</Text>
+          {editingName ? (
+            <View style={s.editRow}>
+              <TextInput
+                style={s.nameInput}
+                value={newName}
+                onChangeText={setNewName}
+                placeholderTextColor="#6B7196"
+                autoFocus
+              />
               <TouchableOpacity
-                style={s.modalOkBtn}
-                onPress={() =>
-                  setMessageModal(prev => ({ ...prev, visible: false }))
-                }
+                style={s.saveBtn}
+                onPress={handleSaveName}
+                disabled={loading}
               >
-                <Text style={s.modalOkText}>OK</Text>
+                {loading ? (
+                  <ActivityIndicator color="#12194A" size="small" />
+                ) : (
+                  <Check size={17} color="#12194A" />
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={s.cancelBtn}
+                onPress={() => {
+                  setEditingName(false);
+                  setNewName(displayName);
+                }}
+              >
+                <X size={17} color="#F5EFE0" />
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={s.nameRow}>
+              <Text style={s.nameText}>{displayName}</Text>
+              <TouchableOpacity
+                style={s.editBtn}
+                onPress={() => setEditingName(true)}
+              >
+                <Pencil size={13} color="#E0972A" />
+                <Text style={s.editBtnText}>Edit</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+
+        <View style={s.divider} />
+
+        {/* Email */}
+        {user?.email ? (
+          <>
+            <View style={s.fieldBlock}>
+              <Text style={s.cardLabel}>Email</Text>
+              <Text style={s.cardValue}>{user.email}</Text>
+            </View>
+            <View style={s.divider} />
+          </>
+        ) : null}
+
+        {/* Username */}
+        <View style={s.fieldBlock}>
+          <Text style={s.cardLabel}>Username</Text>
+          {editingUsername ? (
+            <View style={s.editRow}>
+              <TextInput
+                style={s.nameInput}
+                value={newUsername}
+                onChangeText={setNewUsername}
+                autoCapitalize="none"
+                placeholderTextColor="#6B7196"
+                autoFocus
+              />
+              <TouchableOpacity
+                style={s.saveBtn}
+                onPress={handleSaveUsername}
+                disabled={loading}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#12194A" size="small" />
+                ) : (
+                  <Check size={17} color="#12194A" />
+                )}
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={s.cancelBtn}
+                onPress={() => {
+                  setEditingUsername(false);
+                  setNewUsername(userProfile?.username || '');
+                }}
+              >
+                <X size={17} color="#F5EFE0" />
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <View style={s.nameRow}>
+              <Text style={s.nameText}>
+                @{userProfile?.username || 'not set'}
+              </Text>
+              <TouchableOpacity
+                style={s.editBtn}
+                onPress={() => setEditingUsername(true)}
+              >
+                <Pencil size={13} color="#E0972A" />
+                <Text style={s.editBtnText}>Edit</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
+      </View>
+
+      {/* ===== Stats ===== */}
+      <View style={s.chipsRow}>
+        <View style={[s.chip, s.chipWin]}>
+          <Text style={s.chipValue}>{userProfile?.wins ?? 0}</Text>
+          <Text style={s.chipLabel}>WINS</Text>
+        </View>
+        <View style={[s.chip, s.chipLoss]}>
+          <Text style={s.chipValue}>{userProfile?.losses ?? 0}</Text>
+          <Text style={s.chipLabel}>LOSSES</Text>
+        </View>
+        <View style={[s.chip, s.chipDraw]}>
+          <Text style={s.chipValue}>{userProfile?.draw ?? 0}</Text>
+          <Text style={s.chipLabel}>DRAWS</Text>
+        </View>
+      </View>
+
+      {/* Logout */}
+      <TouchableOpacity
+        style={s.logoutBtn}
+        activeOpacity={0.85}
+        onPress={handleLogout}
+      >
+        <LogOut size={17} color="#F5EFE0" />
+        <Text style={s.logoutBtnText}>Logout</Text>
+      </TouchableOpacity>
+
+      {/* ---- Logout confirmation popup ---- */}
+      <Modal
+        visible={logoutModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setLogoutModalVisible(false)}
+      >
+        <View style={s.modalOverlay}>
+          <View style={s.modalBox}>
+            <Text style={s.modalTitle}>Logout</Text>
+            <Text style={s.modalMessage}>Logout garne?</Text>
+            <View style={s.modalBtnRow}>
+              <TouchableOpacity
+                style={s.modalCancelBtn}
+                onPress={() => setLogoutModalVisible(false)}
+              >
+                <Text style={s.modalCancelText}>Cancel</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={s.modalDangerBtn}
+                onPress={confirmLogout}
+              >
+                <Text style={s.modalDangerText}>Logout</Text>
               </TouchableOpacity>
             </View>
           </View>
-        </Modal>
+        </View>
+      </Modal>
 
-        {/* ---- Avatar picker popup ---- */}
-        <Modal
-          visible={avatarPickerVisible}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setAvatarPickerVisible(false)}
-        >
-          <View style={s.modalOverlay}>
-            <View style={s.avatarPickerBox}>
-              <Text style={s.modalTitle}>Choose Avatar</Text>
+      {/* ---- Success / Error popup ---- */}
+      <Modal
+        visible={messageModal.visible}
+        transparent
+        animationType="fade"
+        onRequestClose={() =>
+          setMessageModal(prev => ({ ...prev, visible: false }))
+        }
+      >
+        <View style={s.modalOverlay}>
+          <View style={s.modalBox}>
+            <View
+              style={[
+                s.iconCircle,
+                messageModal.type === 'success'
+                  ? s.iconCircleSuccess
+                  : s.iconCircleError,
+              ]}
+            >
+              <Text style={s.iconText}>
+                {messageModal.type === 'success' ? '✓' : '!'}
+              </Text>
+            </View>
+            <Text style={s.modalTitle}>{messageModal.title}</Text>
+            <Text style={s.modalMessage}>{messageModal.message}</Text>
+            <TouchableOpacity
+              style={s.modalOkBtn}
+              onPress={() =>
+                setMessageModal(prev => ({ ...prev, visible: false }))
+              }
+            >
+              <Text style={s.modalOkText}>OK</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
 
-              <View style={s.avatarGrid}>
-                {/* "My Photo" option — email/Google/Facebook login bata aaeko
+      {/* ---- Avatar picker popup ---- */}
+      <Modal
+        visible={avatarPickerVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setAvatarPickerVisible(false)}
+      >
+        <View style={s.modalOverlay}>
+          <View style={s.avatarPickerBox}>
+            <Text style={s.modalTitle}>Choose Avatar</Text>
+
+            <View style={s.avatarGrid}>
+              {/* "My Photo" option — email/Google/Facebook login bata aaeko
                     photo, sadhai grid ko sabai bhanda pahilo option ma dekhincha,
                     photoURL cha bhane matra */}
-                {photoURL && (
-                  <TouchableOpacity
-                    onPress={handleSelectMyPhoto}
-                    disabled={avatarSaving}
-                    style={[
-                      s.avatarGridItem,
-                      !userProfile?.avatarId && s.avatarGridItemSelected,
-                    ]}
-                  >
-                    <Image
-                      source={{ uri: photoURL }}
-                      style={s.avatarGridImage}
-                    />
-                  </TouchableOpacity>
-                )}
-
-                {AVATAR_LIST.filter(a => !!a?.source).map(a => (
-                  <TouchableOpacity
-                    key={a.id}
-                    onPress={() => handleSelectAvatar(a.id)}
-                    disabled={avatarSaving}
-                    style={[
-                      s.avatarGridItem,
-                      userProfile?.avatarId === a.id &&
-                        s.avatarGridItemSelected,
-                    ]}
-                  >
-                    <Image source={a.source} style={s.avatarGridImage} />
-                  </TouchableOpacity>
-                ))}
-              </View>
-
-              {avatarSaving && (
-                <ActivityIndicator
-                  color="#E0972A"
-                  style={{ marginBottom: 12 }}
-                />
+              {photoURL && (
+                <TouchableOpacity
+                  onPress={handleSelectMyPhoto}
+                  disabled={avatarSaving}
+                  style={[
+                    s.avatarGridItem,
+                    !userProfile?.avatarId && s.avatarGridItemSelected,
+                  ]}
+                >
+                  <Image source={{ uri: photoURL }} style={s.avatarGridImage} />
+                </TouchableOpacity>
               )}
 
-              <TouchableOpacity
-                style={s.modalCloseBtnFull}
-                activeOpacity={0.7}
-                onPress={() => setAvatarPickerVisible(false)}
-              >
-                <Text style={s.modalCancelText}>Close</Text>
-              </TouchableOpacity>
+              {AVATAR_LIST.filter(a => !!a?.source).map(a => (
+                <TouchableOpacity
+                  key={a.id}
+                  onPress={() => handleSelectAvatar(a.id)}
+                  disabled={avatarSaving}
+                  style={[
+                    s.avatarGridItem,
+                    userProfile?.avatarId === a.id && s.avatarGridItemSelected,
+                  ]}
+                >
+                  <Image source={a.source} style={s.avatarGridImage} />
+                </TouchableOpacity>
+              ))}
             </View>
+
+            {avatarSaving && (
+              <ActivityIndicator color="#E0972A" style={{ marginBottom: 12 }} />
+            )}
+
+            <TouchableOpacity
+              style={s.modalCloseBtnFull}
+              activeOpacity={0.7}
+              onPress={() => setAvatarPickerVisible(false)}
+            >
+              <Text style={s.modalCancelText}>Close</Text>
+            </TouchableOpacity>
           </View>
-        </Modal>
-      </ScrollView>
-    </ImageBackground>
+        </View>
+      </Modal>
+    </Layout>
   );
 };
 

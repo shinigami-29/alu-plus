@@ -10,7 +10,6 @@ import {
   FlatList,
   Image,
   ActivityIndicator,
-  ImageBackground,
   RefreshControl,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -25,6 +24,7 @@ import {
   Search,
   UserPlus,
 } from 'lucide-react-native';
+import Layout from '../../components/AppLayout/Layout';
 
 type Props = { navigation: NativeStackNavigationProp<any> };
 
@@ -170,20 +170,18 @@ const MultiplayerScreen = ({ navigation }: Props) => {
 
   if (!profileReady) {
     return (
+     <Layout>
       <View style={[s.container, s.loadingContainer]}>
         <ActivityIndicator size="large" color="#182992" />
         <Text style={s.loadingText}>Loading your profile...</Text>
       </View>
+    </Layout>
     );
   }
 
   return (
-    <ImageBackground
-      source={require('../../images/bg3.png')}
-      style={s.bg}
-      resizeMode="cover"
-    >
-      <View style={s.container}>
+    <Layout withScroll={false}>
+       <View style={s.container}>
         {/* Top bar */}
         <View style={s.topBar}>
           <TouchableOpacity
@@ -362,44 +360,6 @@ const MultiplayerScreen = ({ navigation }: Props) => {
                   tintColor="#182992"
                 />
               }
-              // renderItem={({ item }) => (
-              //   <View style={s.playerRow}>
-              //     <View style={s.playerRowLeft}>
-              //       <View style={s.avatarWrap}>
-              //         {renderRowAvatar(item.name, item.photo, item.avatarId)}
-              //         <View style={s.rowAvatarCircle}>
-              //           <Text style={s.rowAvatarLetter}>
-              //             {item?.[0]?.toUpperCase() ?? '?'}
-              //           </Text>
-              //         </View>
-              //         <View
-              //           style={[
-              //             s.statusDot,
-              //             onlineStatus[item] ? s.dotOnline : s.dotOffline,
-              //           ]}
-              //         />
-              //       </View>
-              //       <Text style={s.playerRowName} numberOfLines={1}>
-              //         {item}
-              //       </Text>
-              //     </View>
-              //     <View style={s.playerRowActions}>
-              //       {!isFriend(item) && (
-              //         <TouchableOpacity
-              //           style={s.addBtn}
-              //           onPress={() => handleAddFriend(item)}
-              //         >
-              //           <Text style={s.addBtnText}>Add</Text>
-              //         </TouchableOpacity>
-              //       )}
-              //       <TouchableOpacity
-              //         style={s.inviteBtn}
-              //         onPress={() => handleInvite(item)}
-              //       >
-              //         <Text style={s.inviteBtnText}>Invite</Text>
-              //       </TouchableOpacity>
-              //     </View>
-              //   </View>
               renderItem={({ item }) => (
     <View style={s.playerRow}>
       <View style={s.playerRowLeft}>
@@ -473,7 +433,7 @@ const MultiplayerScreen = ({ navigation }: Props) => {
           </View>
         )}
       </View>
-    </ImageBackground>
+    </Layout>
   );
 };
 
@@ -485,7 +445,7 @@ const s = StyleSheet.create({
   },
   container: {
     flex: 1,
-    paddingTop: 50,
+    paddingTop: 10,
     paddingHorizontal: 20,
   },
   loadingContainer: {

@@ -4,13 +4,13 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  ImageBackground,
   FlatList,
   RefreshControl,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useGameLogic } from '../GameLogicContext';
 import { DoorOpen, Users, ArrowLeft, RefreshCw } from 'lucide-react-native';
+import Layout from '../../components/AppLayout/Layout';
 
 type Props = {
   navigation: NativeStackNavigationProp<any>;
@@ -88,11 +88,7 @@ const RoomListScreen = ({ navigation }: Props) => {
   };
 
   return (
-    <ImageBackground
-      source={require('../../images/bg3.png')}
-      style={s.container}
-      resizeMode="cover"
-    >
+  <Layout withScroll={false}>
       <View style={s.header}>
         <TouchableOpacity style={s.backBtn} onPress={() => navigation.goBack()}>
           <ArrowLeft size={20} color="#182992" />
@@ -111,6 +107,7 @@ const RoomListScreen = ({ navigation }: Props) => {
         data={allRooms}
         keyExtractor={item => item.roomCode}
         renderItem={renderItem}
+        scrollEnabled={false}
         contentContainerStyle={s.listContent}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
@@ -125,7 +122,7 @@ const RoomListScreen = ({ navigation }: Props) => {
           </View>
         }
       />
-    </ImageBackground>
+  </Layout>
   );
 };
 

@@ -5,12 +5,12 @@ import {
   TouchableOpacity,
   TextInput,
   StyleSheet,
-  ImageBackground,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useGameLogic } from '../GameLogicContext';
 import { LogIn } from 'lucide-react-native';
 import { DoorOpen } from 'lucide-react-native';
+import Layout from '../../components/AppLayout/Layout';
 
 type Props = { navigation: NativeStackNavigationProp<any> };
 
@@ -37,12 +37,8 @@ const JoinRoomScreen = ({ navigation }: Props) => {
 
 
   return (
-    <ImageBackground
-      source={require('../../images/bg3.png')}
-      style={s.bg}
-      resizeMode="cover"
-    >
-      <View style={s.container}>
+   <Layout withScroll={false}>
+    <View style={s.container}>
         <View style={s.card}>
           <View style={s.iconCircle}>
             <LogIn size={26} color="#c7cbe0" />
@@ -84,7 +80,7 @@ const JoinRoomScreen = ({ navigation }: Props) => {
             </TouchableOpacity>
         </View>
       </View>
-    </ImageBackground>
+   </Layout>
   );
 };
 

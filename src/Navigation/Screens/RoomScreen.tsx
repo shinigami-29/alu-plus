@@ -5,7 +5,6 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
-  ImageBackground,
   Image,
   Clipboard,
   Alert,
@@ -14,6 +13,7 @@ import {
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useGameLogic } from '../GameLogicContext';
 import { Copy, Users, DoorOpen, Crown } from 'lucide-react-native';
+import Layout from '../../components/AppLayout/Layout';
 
 type Props = {
   navigation: NativeStackNavigationProp<any>;
@@ -56,13 +56,9 @@ const RoomScreen = ({ navigation }: Props) => {
 
 
   return (
-    <ImageBackground
-      source={require('../../images/bg3.png')}
-      style={s.container}
-      resizeMode="cover"
-    >
-
-      <View style={s.panel}>
+    <Layout>
+      <View style={s.container}>
+        <View style={s.panel}>
         <View style={s.header}>
           <Text style={s.headerTitle}>Game Room</Text>
           <TouchableOpacity style={s.leaveBtn} onPress={handleLeave}>
@@ -117,7 +113,8 @@ const RoomScreen = ({ navigation }: Props) => {
           <Text style={s.leaveRoomBtnText}>Leave Room</Text>
         </TouchableOpacity>
       </View>
-    </ImageBackground>
+      </View>
+    </Layout>
   );
 };
 

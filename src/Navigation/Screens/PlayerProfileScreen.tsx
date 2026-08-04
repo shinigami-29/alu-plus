@@ -11,7 +11,6 @@ import {
   Animated,
   Easing,
   Pressable,
-  ImageBackground,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RouteProp } from '@react-navigation/native';
@@ -23,9 +22,9 @@ import {
   Send,
   AlertTriangle,
   CheckCircle2,
-  Trophy,
 } from 'lucide-react-native';
 import { getAvatarSource } from '../../avatar/Avatar';
+import Layout from '../../components/AppLayout/Layout';
 
 type Props = {
   navigation: NativeStackNavigationProp<any>;
@@ -122,12 +121,8 @@ const PlayerProfileScreen = ({ navigation, route }: Props) => {
       : RANKS.find((r) => winRate >= r.min)!;
 
   return (
-    <ImageBackground
-      source={require('../../images/bg3.png')}
-      style={s.bg}
-      resizeMode="cover"
-    >
-      <View style={s.container}>
+    <Layout>
+       <View style={s.container}>
         {/* Header */}
         <View style={s.header}>
           <TouchableOpacity
@@ -319,7 +314,7 @@ const PlayerProfileScreen = ({ navigation, route }: Props) => {
           </Pressable>
         </Modal>
       </View>
-    </ImageBackground>
+    </Layout>
   );
 };
 

@@ -6,12 +6,13 @@ import {
   StyleSheet,
   FlatList,
   Image,
-  ImageBackground,
+
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useGameLogic } from '../GameLogicContext';
 import { ArrowLeft, RefreshCw, Trophy, Crown } from 'lucide-react-native';
 import { AVATAR_LIST, getAvatarSource } from '../../avatar/Avatar';
+import Layout from '../../components/AppLayout/Layout';
 type Props = { navigation: NativeStackNavigationProp<any> };
 
 // Aba wins haru weekly reset hunxa (Monday–Sunday). Yo function le "resets in Xd"
@@ -24,6 +25,7 @@ const getDaysUntilReset = (): number => {
 };
 
 const LeaderboardScreen = ({ navigation }: Props) => {
+
   const { leaderboard, fetchLeaderboard, myName } = useGameLogic();
 
   useEffect(() => {
@@ -112,13 +114,10 @@ const LeaderboardScreen = ({ navigation }: Props) => {
   });
 
   return (
-    <ImageBackground
-      source={require('../../images/bg3.png')}
-      style={s.container}
-      resizeMode="cover"
-    >
+    <Layout withScroll={false}>
       <View style={s.container}>
         {/* Header */}
+        {/* <View style={s.header}> */}
         <View style={s.header}>
           <TouchableOpacity
             onPress={() => navigation.goBack()}
@@ -270,7 +269,7 @@ const LeaderboardScreen = ({ navigation }: Props) => {
           />
         )}
       </View>
-    </ImageBackground>
+    </Layout>
   );
 };
 
@@ -280,13 +279,13 @@ const s = StyleSheet.create({
   container: {
     flex: 1,
   },
-
+ 
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingTop: 50,
+    // paddingTop: 50,
     paddingBottom: 16,
   },
   iconBtn: {

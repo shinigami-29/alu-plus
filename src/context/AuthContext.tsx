@@ -97,7 +97,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           setUserProfile(doc.data() as UserProfile);
         }
         setLoading(false);
-      });
+      })
+       .catch(err => {
+      console.log('fetchUserProfile error:', err);
+      setLoading(false); // error aaye pani loading false garne, natra forever stuck
+    });
   };
 
   const registerWithEmail = (
@@ -179,31 +183,37 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const loginAsGuest = () => {
-    return auth()
-      .signInAnonymously()
-      .then(({ user: guestUser }) => {
-        return firestore()
-          .collection('users')
-          .doc(guestUser.uid)
-          .get()
-          .then(doc => {
-            if (!doc.exists()) {
-              return firestore()
-                .collection('users')
-                .doc(guestUser.uid)
-                .set(
-                  buildDefaultProfile(
-                    guestUser.uid,
-                    'Guest',
-                    `guest_${guestUser.uid.slice(0, 6)}`,
-                    '',
-                    null,
-                  ),
-                );
-            }
-          });
-      });
-  };
+  return auth()
+    .signInAnonymously()
+    .then(({ user: guestUser }) => {
+      return firestore()
+        .collection('users')
+        .doc(guestUser.uid)
+        .get()
+        .then(doc => {
+          if (!doc.exists()) {
+            const newProfile = buildDefaultProfile(
+              guestUser.uid,
+              'Guest',
+              `guest_${guestUser.uid.slice(0, 6)}`,
+              '',
+              null,
+            );
+            return firestore()
+              .collection('users')
+              .doc(guestUser.uid)
+              .set(newProfile)
+              .then(() => {
+                // Yehi missing thiyo — profile create garepachi state pani update garne
+                setUserProfile(newProfile as unknown as UserProfile);
+              });
+          } else {
+            // Doc already exists (existing guest re-login huda) — state update garne
+            setUserProfile(doc.data() as UserProfile);
+          }
+        });
+    });
+};
 
   // Facebook Graph API bata seedhai fresh profile (naam + photo) tannu —
   // kina ki linkWithCredential garda Firebase le existing (Google) user ko

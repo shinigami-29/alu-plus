@@ -7,12 +7,12 @@ import {
   StyleSheet,
   Animated,
   Image,
-  ImageBackground,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useGameLogic } from '../GameLogicContext';
 import { useAuth } from '../../context/AuthContext';
 import { getAvatarSource } from '../../avatar/Avatar';
+import Layout from '../../components/AppLayout/Layout';
 
 type Props = { navigation: NativeStackNavigationProp<any> };
 
@@ -133,17 +133,27 @@ const RandomMatchScreen = ({ navigation }: Props) => {
     }
   }, [screen]);
 
+  const statusRef = useRef(randomMatchStatus);
+useEffect(() => {
+  statusRef.current = randomMatchStatus;
+}, [randomMatchStatus]);
+
+useEffect(() => {
+  return () => {
+    if (statusRef.current === 'searching') {
+      cancelRandomMatch();
+    }
+  };
+}, []);
+
   const handleCancel = () => {
     cancelRandomMatch();
     navigation.goBack();
   };
 
   return (
-    <ImageBackground
-      source={require('../../images/bg3.png')}
-      style={s.container}
-      resizeMode="cover"
-    >
+   <Layout>
+    <View style={s.container}>
       <Text style={s.title}>
         {found ? 'Opponent Found!' : 'Finding Opponent'}
       </Text>
@@ -197,8 +207,6 @@ const RandomMatchScreen = ({ navigation }: Props) => {
         {/* Opponent box */}
         <View style={[s.playerBox, found ? s.foundBox : s.opponentBox]}>
           {found ? (
-            // avatarId lai photo bhanda priority — avatar select gareko bhaye tyo dekhaune,
-            // natra photo, natra letter fallback
             opponentAvatarSource ? (
               <Animated.Image
                 source={opponentAvatarSource}
@@ -240,14 +248,15 @@ const RandomMatchScreen = ({ navigation }: Props) => {
         </View>
       </View>
 
-      {/* Cancel button - found bhaisakepachi hide garne */}
+      {/* Cancel button */}
       {!found && (
         <TouchableOpacity style={s.cancelBtn} onPress={handleCancel}>
           <Text style={s.cancelText}>Cancel</Text>
         </TouchableOpacity>
       )}
-    </ImageBackground>
-  );
+    </View>
+  </Layout>
+);
 };
 
 export default RandomMatchScreen;
@@ -403,7 +412,7 @@ const s = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#dde3f0',
+    borderColor: '#dde3f0', 
   },
   cancelText: {
     color: '#e57373',

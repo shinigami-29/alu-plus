@@ -27,6 +27,7 @@ import {
   DoorOpen,
   LogOut,
 } from 'lucide-react-native';
+import Layout from '../../components/AppLayout/Layout';
 
 type Props = { navigation: NativeStackNavigationProp<any> };
 
@@ -212,11 +213,7 @@ const ModeScreen = ({ navigation }: Props) => {
     findRandomMatch();
   };
   return (
-    <ImageBackground
-      source={require('../../images/bg3.png')}
-      style={s.container}
-      resizeMode="cover"
-    >
+   <Layout>
       <InviteToast
         invitations={incomingInvitations}
         friendRequests={incomingFriendRequests}
@@ -381,7 +378,7 @@ const ModeScreen = ({ navigation }: Props) => {
           </View>
         </View>
       </Modal>
-    </ImageBackground>
+   </Layout>
   );
 };
 export default ModeScreen;
@@ -389,9 +386,9 @@ export default ModeScreen;
 const s = StyleSheet.create({
   container: {
     flex: 1,
-    paddingTop: 20,
     paddingHorizontal: 20,
   },
+
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -491,9 +488,10 @@ const s = StyleSheet.create({
   },
   center: {
     flex: 1,
-    justifyContent: 'center',
-    gap: 12,
-    paddingBottom: 40,
+  justifyContent: 'flex-start',
+  gap: 14,
+  paddingTop: 10,
+  paddingBottom: 20,
   },
   btn: {
     flexDirection: 'row',
@@ -547,8 +545,8 @@ const s = StyleSheet.create({
     color: '#FFF3DD',
     fontWeight: '600',
     textAlign: 'center',
-    marginTop: 40,
-    marginBottom: 2,
+    marginTop: 70,
+    marginBottom: 5,
     textShadowColor: 'rgba(0,0,0,0.3)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 3,

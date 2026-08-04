@@ -6,11 +6,11 @@ import {
   TouchableOpacity,
   StyleSheet,
   Modal,
-  ImageBackground,
   Animated,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useGameLogic } from '../GameLogicContext';
+import Layout from '../../components/AppLayout/Layout';
 
 type Props = { navigation: NativeStackNavigationProp<any> };
 
@@ -158,11 +158,8 @@ const GameScreen = ({ navigation }: Props) => {
   }, [winningLine, winner, lineAnim]);
 
   return (
-    <ImageBackground
-      source={require('../../images/bg3.png')}
-      style={s.container}
-      resizeMode="cover"
-    >
+   <Layout>
+    <View style={s.container}>
       {/* Title */}
       <View style={s.titleWrap}>
         <Text style={s.title}>आलु प्लस</Text>
@@ -206,7 +203,6 @@ const GameScreen = ({ navigation }: Props) => {
 
       {/* Board */}
       <View style={s.boardCard}>
-        {/* NEW: wrapper so the winning-line overlay lines up exactly with the grid */}
         <View style={s.boardWrapper}>
           <View style={s.board}>
             {board.map((cell: any, index: number) => {
@@ -235,7 +231,6 @@ const GameScreen = ({ navigation }: Props) => {
             })}
           </View>
 
-          {/* NEW: animated strike-through line drawn over the winning combo */}
           {lineStyle && <Animated.View style={[s.winLine, lineStyle]} />}
         </View>
       </View>
@@ -250,64 +245,65 @@ const GameScreen = ({ navigation }: Props) => {
       >
         <Text style={s.leaveText}>Leave</Text>
       </TouchableOpacity>
+    </View>
 
-      {/* Winner/Draw Popup — ab popupVisible le control garcha, winner detect vayeko bittikai hoina */}
-      <Modal visible={popupVisible} transparent animationType="fade">
-        <View style={s.overlay}>
-          <View style={s.popup}>
-            <View
-              style={[
-                s.iconCircle,
-                resultSnapshot?.isDraw
-                  ? s.iconCircleDraw
-                  : resultSnapshot?.winner === 'X'
-                  ? s.iconCircleP1
-                  : s.iconCircleP2,
-              ]}
-            >
-              <Text style={s.iconText}>{resultSnapshot?.isDraw ? '🤝' : '🏆'}</Text>
-            </View>
-
-            <Text style={s.popupTitle}>
-              {resultSnapshot?.isDraw
-                ? 'DRAW!'
-                : `${resultSnapshot?.winner === 'X' ? 'PLAYER 1' : 'PLAYER 2'} WINS!`}
-            </Text>
-
-            <View style={s.scoreRow}>
-              <View style={s.scorePill}>
-                <Text style={s.scorePillLabel}>Player 1</Text>
-                <Text style={s.scorePillValue}>{p1Wins}</Text>
-              </View>
-              <View style={s.scorePill}>
-                <Text style={s.scorePillLabel}>Player 2</Text>
-                <Text style={s.scorePillValue}>{p2Wins}</Text>
-              </View>
-            </View>
-
-            <TouchableOpacity
-              style={s.popupBtn}
-              activeOpacity={0.85}
-              onPress={resetGame}
-            >
-              <Text style={s.popupBtnText}>Play Again</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[s.popupBtn, s.menuBtn]}
-              activeOpacity={0.85}
-              onPress={() => {
-                handleFullReset();
-                navigation.navigate('Mode');
-              }}
-            >
-              <Text style={[s.popupBtnText, s.menuBtnText]}>Menu</Text>
-            </TouchableOpacity>
+    {/* Modal Layout ko bahira nai rahos — position:absolute jasto overlay ho */}
+    <Modal visible={popupVisible} transparent animationType="fade">
+      <View style={s.overlay}>
+        <View style={s.popup}>
+          <View
+            style={[
+              s.iconCircle,
+              resultSnapshot?.isDraw
+                ? s.iconCircleDraw
+                : resultSnapshot?.winner === 'X'
+                ? s.iconCircleP1
+                : s.iconCircleP2,
+            ]}
+          >
+            <Text style={s.iconText}>{resultSnapshot?.isDraw ? '🤝' : '🏆'}</Text>
           </View>
+
+          <Text style={s.popupTitle}>
+            {resultSnapshot?.isDraw
+              ? 'DRAW!'
+              : `${resultSnapshot?.winner === 'X' ? 'PLAYER 1' : 'PLAYER 2'} WINS!`}
+          </Text>
+
+          <View style={s.scoreRow}>
+            <View style={s.scorePill}>
+              <Text style={s.scorePillLabel}>Player 1</Text>
+              <Text style={s.scorePillValue}>{p1Wins}</Text>
+            </View>
+            <View style={s.scorePill}>
+              <Text style={s.scorePillLabel}>Player 2</Text>
+              <Text style={s.scorePillValue}>{p2Wins}</Text>
+            </View>
+          </View>
+
+          <TouchableOpacity
+            style={s.popupBtn}
+            activeOpacity={0.85}
+            onPress={resetGame}
+          >
+            <Text style={s.popupBtnText}>Play Again</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={[s.popupBtn, s.menuBtn]}
+            activeOpacity={0.85}
+            onPress={() => {
+              handleFullReset();
+              navigation.navigate('Mode');
+            }}
+          >
+            <Text style={[s.popupBtnText, s.menuBtnText]}>Menu</Text>
+          </TouchableOpacity>
         </View>
-      </Modal>
-    </ImageBackground>
-  );
+      </View>
+    </Modal>
+  </Layout>
+);
 };
 
 export default GameScreen;

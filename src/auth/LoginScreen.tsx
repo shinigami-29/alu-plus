@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import {
   View,
@@ -17,6 +16,7 @@ import {
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth } from '../context/AuthContext';
 import { AlertCircle, Eye, EyeOff, User } from 'lucide-react-native';
+import Layout from '../components/AppLayout/Layout';
 
 type Props = { navigation: NativeStackNavigationProp<any> };
 
@@ -74,6 +74,18 @@ const LoginScreen = ({ navigation }: Props) => {
       .finally(() => setLoading(false));
   };
 
+  // const handleGoogleLogin = () => {
+  //   setLoading(true);
+  //   loginWithGoogle()
+  //     .then(() => {
+  //       navigation.replace('Mode');
+  //     })
+  //     .catch(err => {
+  //       showAlert('Google Login Failed', getFriendlyAuthError(err.code));
+  //     })
+  //     .finally(() => setLoading(false));
+  // };
+
   const handleGoogleLogin = () => {
     setLoading(true);
     loginWithGoogle()
@@ -81,6 +93,8 @@ const LoginScreen = ({ navigation }: Props) => {
         navigation.replace('Mode');
       })
       .catch(err => {
+        console.log('GOOGLE LOGIN ERROR CODE:', err.code);
+        console.log('GOOGLE LOGIN ERROR MESSAGE:', err.message);
         showAlert('Google Login Failed', getFriendlyAuthError(err.code));
       })
       .finally(() => setLoading(false));
@@ -113,151 +127,135 @@ const LoginScreen = ({ navigation }: Props) => {
   };
 
   return (
-    <ImageBackground
-      source={require('../images/bg3.png')}
-      style={s.bg}
-      resizeMode="cover"
-    >
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        <ScrollView
-          contentContainerStyle={s.container}
-          keyboardShouldPersistTaps="handled"
+    <Layout>
+      {/* Title */}
+      <Text style={s.appName}>आलु प्लस</Text>
+      <View style={s.titleWrap}>
+        <Text style={s.screenTitle}>Welcome Back</Text>
+        <Text style={s.screenSubtitle}>Login to continue playing</Text>
+      </View>
+
+      {/* ===== Login card ===== */}
+      <View style={s.card}>
+        {/* Email Input */}
+        <TextInput
+          style={s.input}
+          placeholder="Email"
+          placeholderTextColor="#6B7196"
+          value={email}
+          onChangeText={setEmail}
+          keyboardType="email-address"
+          autoCapitalize="none"
+        />
+
+        {/* Password Input */}
+        <View style={s.passwordWrap}>
+          <TextInput
+            style={s.passwordInput}
+            placeholder="Password"
+            placeholderTextColor="#6B7196"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry={!showPassword}
+          />
+          <TouchableOpacity
+            style={s.eyeBtn}
+            onPress={() => setShowPassword(prev => !prev)}
+            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+          >
+            {showPassword ? (
+              <EyeOff size={20} color="#8B93AE" />
+            ) : (
+              <Eye size={20} color="#8B93AE" />
+            )}
+          </TouchableOpacity>
+        </View>
+
+        {/* Login Button */}
+        <TouchableOpacity
+          style={s.loginBtn}
+          onPress={handleEmailLogin}
+          disabled={loading}
+          activeOpacity={0.85}
         >
-          {/* Title */}
-          <Text style={s.appName}>आलु प्लस</Text>
-          <View style={s.titleWrap}>
-            <Text style={s.screenTitle}>Welcome Back</Text>
-            <Text style={s.screenSubtitle}>Login to continue playing</Text>
-          </View>
+          {loading ? (
+            <ActivityIndicator color="#12194A" />
+          ) : (
+            <Text style={s.loginBtnText}>Login</Text>
+          )}
+        </TouchableOpacity>
 
-          {/* ===== Login card ===== */}
-          <View style={s.card}>
-            {/* Email Input */}
-            <TextInput
-              style={s.input}
-              placeholder="Email"
-              placeholderTextColor="#6B7196"
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
+        {/* Divider */}
+        <View style={s.dividerRow}>
+          <View style={s.divider} />
+          <Text style={s.dividerText}>Or</Text>
+          <View style={s.divider} />
+        </View>
 
-            {/* Password Input */}
-            <View style={s.passwordWrap}>
-              <TextInput
-                style={s.passwordInput}
-                placeholder="Password"
-                placeholderTextColor="#6B7196"
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry={!showPassword}
-              />
-              <TouchableOpacity
-                style={s.eyeBtn}
-                onPress={() => setShowPassword(prev => !prev)}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              >
-                {showPassword ? (
-                  <EyeOff size={20} color="#8B93AE" />
-                ) : (
-                  <Eye size={20} color="#8B93AE" />
-                )}
-              </TouchableOpacity>
-            </View>
+        {/* Google Login */}
+        <TouchableOpacity
+          style={s.googleBtn}
+          onPress={handleGoogleLogin}
+          disabled={loading}
+          activeOpacity={0.85}
+        >
+          <Image
+            source={require('../images/icons/gg.png')}
+            style={s.socialIcon}
+            resizeMode="contain"
+          />
+          <Text style={s.googleBtnText}>Sign in with Google</Text>
+        </TouchableOpacity>
 
-            {/* Login Button */}
-            <TouchableOpacity
-              style={s.loginBtn}
-              onPress={handleEmailLogin}
-              disabled={loading}
-              activeOpacity={0.85}
-            >
-              {loading ? (
-                <ActivityIndicator color="#12194A" />
-              ) : (
-                <Text style={s.loginBtnText}>Login</Text>
-              )}
-            </TouchableOpacity>
-
-            {/* Divider */}
-            <View style={s.dividerRow}>
-              <View style={s.divider} />
-              <Text style={s.dividerText}>Or</Text>
-              <View style={s.divider} />
-            </View>
-
-            {/* Google Login */}
-            <TouchableOpacity
-              style={s.googleBtn}
-              onPress={handleGoogleLogin}
-              disabled={loading}
-              activeOpacity={0.85}
-            >
+        {/* Facebook Login */}
+        <TouchableOpacity
+          style={s.facebookButton}
+          onPress={handleFacebookLogin}
+          disabled={fbLoading}
+          activeOpacity={0.85}
+        >
+          {fbLoading ? (
+            <ActivityIndicator color="#F5EFE0" />
+          ) : (
+            <>
               <Image
-                source={require('../images/icons/gg.png')}
+                source={require('../images/icons/fb.png')}
                 style={s.socialIcon}
                 resizeMode="contain"
               />
-              <Text style={s.googleBtnText}>Sign in with Google</Text>
-            </TouchableOpacity>
+              <Text style={s.facebookButtonText}>Continue with Facebook</Text>
+            </>
+          )}
+        </TouchableOpacity>
 
-            {/* Facebook Login */}
-            <TouchableOpacity
-              style={s.facebookButton}
-              onPress={handleFacebookLogin}
-              disabled={fbLoading}
-              activeOpacity={0.85}
-            >
-              {fbLoading ? (
-                <ActivityIndicator color="#F5EFE0" />
-              ) : (
-                <>
-                  <Image
-                    source={require('../images/icons/fb.png')}
-                    style={s.socialIcon}
-                    resizeMode="contain"
-                  />
-                  <Text style={s.facebookButtonText}>
-                    Continue with Facebook
-                  </Text>
-                </>
-              )}
-            </TouchableOpacity>
+        {/* Guest Login */}
+        <TouchableOpacity
+          style={s.guestBtn}
+          onPress={handleGuestLogin}
+          disabled={loading}
+          activeOpacity={0.85}
+        >
+          {loading ? (
+            <ActivityIndicator color="#F5EFE0" />
+          ) : (
+            <>
+              <User size={18} color="#F5EFE0" style={{ marginRight: 8 }} />
+              <Text style={s.guestBtnText}>Login as Guest</Text>
+            </>
+          )}
+        </TouchableOpacity>
+      </View>
 
-            {/* Guest Login */}
-            <TouchableOpacity
-              style={s.guestBtn}
-              onPress={handleGuestLogin}
-              disabled={loading}
-              activeOpacity={0.85}
-            >
-              {loading ? (
-                <ActivityIndicator color="#F5EFE0" />
-              ) : (
-                <>
-                  <User size={18} color="#F5EFE0" style={{ marginRight: 8 }} />
-                  <Text style={s.guestBtnText}>Login as Guest</Text>
-                </>
-              )}
-            </TouchableOpacity>
-          </View>
-
-          {/* Register Link — only the "Register" word itself is pressable */}
-          <View style={s.registerRow}>
-            <Text style={s.registerLinkText}>Don't Have Account? </Text>
-            <TouchableOpacity
-              onPress={() => navigation.navigate('Register')}
-              hitSlop={{ top: 10, bottom: 10, left: 6, right: 10 }}
-            >
-              <Text style={s.registerLinkBold}>Register</Text>
-            </TouchableOpacity>
-          </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+      {/* Register Link — only the "Register" word itself is pressable */}
+      <View style={s.registerRow}>
+        <Text style={s.registerLinkText}>Don't Have Account? </Text>
+        <TouchableOpacity
+          onPress={() => navigation.navigate('Register')}
+          hitSlop={{ top: 10, bottom: 10, left: 6, right: 10 }}
+        >
+          <Text style={s.registerLinkBold}>Register</Text>
+        </TouchableOpacity>
+      </View>
 
       {/* Custom Alert Popup */}
       <Modal
@@ -283,7 +281,7 @@ const LoginScreen = ({ navigation }: Props) => {
           </View>
         </View>
       </Modal>
-    </ImageBackground>
+    </Layout>
   );
 };
 

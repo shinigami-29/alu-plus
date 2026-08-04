@@ -5,11 +5,12 @@ import {
   FlatList,
   StyleSheet,
   TouchableOpacity,
-  ImageBackground,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ArrowLeft, History, Swords, RefreshCw } from 'lucide-react-native';
 import { useGameLogic } from '../GameLogicContext';
+
+import Layout from '../../components/AppLayout/Layout';
 
 type Props = { navigation: NativeStackNavigationProp<any> };
 
@@ -41,11 +42,7 @@ const MatchHistoryScreen = ({ navigation }: Props) => {
   };
 
   return (
-    <ImageBackground
-      source={require('../../images/bg3.png')}
-      style={s.container}
-      resizeMode="cover"
-    >
+    <Layout withScroll={false}>
       <View style={s.container}>
         <View style={s.header}>
           <TouchableOpacity
@@ -128,7 +125,7 @@ const MatchHistoryScreen = ({ navigation }: Props) => {
           )}
         />
       </View>
-    </ImageBackground>
+    </Layout>
   );
 };
 
@@ -140,12 +137,13 @@ const s = StyleSheet.create({
     // backgroundColor: '#F5F4F0'
     // backgroundColor: '#cbd8f4',
   },
+
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingTop: 50,
+    paddingTop: 8,
     paddingBottom: 16,
   },
   iconBtn: {
@@ -162,7 +160,7 @@ const s = StyleSheet.create({
   headerTitle: {
     fontSize: 22,
     fontWeight: '700',
-    color:'#cbcbdf',
+    color: '#cbcbdf',
     // color: '#182992'
   },
 
@@ -190,7 +188,7 @@ const s = StyleSheet.create({
   emptyText: {
     fontSize: 18,
     fontWeight: 'bold',
-    color:'#cdcdf9',
+    color: '#cdcdf9',
   },
   emptySubText: {
     fontSize: 13,

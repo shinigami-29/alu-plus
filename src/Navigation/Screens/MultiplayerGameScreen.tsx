@@ -7,7 +7,6 @@ import {
   StyleSheet,
   Modal,
   Image,
-  ImageBackground,
   Animated,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -15,6 +14,7 @@ import { AlertTriangle } from 'lucide-react-native';
 import { useGameLogic } from '../GameLogicContext';
 import { useAuth } from '../../context/AuthContext';
 import { getAvatarSource } from '../../avatar/Avatar';
+import Layout from '../../components/AppLayout/Layout';
 
 type Props = { navigation: NativeStackNavigationProp<any> };
 
@@ -247,12 +247,8 @@ const MultiplayerGameScreen = ({ navigation }: Props) => {
   }, [winningLine, lineAnim]);
 
   return (
-    <ImageBackground
-      source={require('../../images/bg3.png')}
-      style={s.container}
-      resizeMode="cover"
-    >
-      <View style={s.container}>
+   <Layout withScroll={false}>
+    <View style={s.container}>
         {/* Title */}
         <View style={s.titleWrap}>
           <Text style={s.title}>आलु प्लस</Text>
@@ -524,7 +520,7 @@ const MultiplayerGameScreen = ({ navigation }: Props) => {
           </View>
         </Modal>
       </View>
-    </ImageBackground>
+   </Layout>
   );
 };
 

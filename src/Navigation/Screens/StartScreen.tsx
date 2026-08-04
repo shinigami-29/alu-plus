@@ -3,12 +3,11 @@ import {
   View,
   StyleSheet,
   Animated,
-  StatusBar,
   Dimensions,
-  ImageBackground,
 } from 'react-native';
 import {NativeStackNavigationProp} from '@react-navigation/native-stack';
 import {useAuth} from '../../context/AuthContext';
+import Layout from '../../components/AppLayout/Layout';
 
 type Props = {navigation: NativeStackNavigationProp<any>};                      
 
@@ -50,43 +49,40 @@ const StartScreen = ({navigation}: Props) => {
     });
   }, [loading]);
 
-  return (
-    <ImageBackground
-      source={require('../../images/bg3.png')}
-      style={s.container}
-      resizeMode="cover">
-      <StatusBar barStyle="light-content" backgroundColor="#F5F4F0" />
+   return (
+    <Layout>
+      <View style={s.container}>
+        <View style={s.titleWrap}>
+          <Animated.Text
+            style={[
+              s.title,
+              {opacity: titleOpacity, transform: [{scale: titleScale}]},
+            ]}>
+            आलु प्लस
+          </Animated.Text>
 
-      <View style={s.titleWrap}>
-        <Animated.Text
-          style={[
-            s.title,
-            {opacity: titleOpacity, transform: [{scale: titleScale}]},
-          ]}>
-          आलु प्लस
-        </Animated.Text>
-
-        <Animated.Text style={[s.subtitle, {opacity: titleOpacity}]}>
-          The Classic Game
-        </Animated.Text>
-      </View>
-
-      <Animated.Image
-        source={require('../../images/tik.png')}
-        style={[s.tikImage, {opacity: titleOpacity}]}
-        resizeMode="contain"
-      />
-
-      {/* Loading bar */}
-      <View style={s.loadingWrap}>
-        <View style={s.loadingContainer}>
-          <Animated.View style={[s.loadingBar, {width: loadingWidth}]} />
+          <Animated.Text style={[s.subtitle, {opacity: titleOpacity}]}>
+            The Classic Game
+          </Animated.Text>
         </View>
-        <Animated.Text style={[s.loadingLabel, {opacity: titleOpacity}]}>
-          Loading...
-        </Animated.Text>
+
+        <Animated.Image
+          source={require('../../images/tik.png')}
+          style={[s.tikImage, {opacity: titleOpacity}]}
+          resizeMode="contain"
+        />
+
+        {/* Loading bar */}
+        <View style={s.loadingWrap}>
+          <View style={s.loadingContainer}>
+            <Animated.View style={[s.loadingBar, {width: loadingWidth}]} />
+          </View>
+          <Animated.Text style={[s.loadingLabel, {opacity: titleOpacity}]}>
+            Loading...
+          </Animated.Text>
+        </View>
       </View>
-    </ImageBackground>
+    </Layout>
   );
 };
 
@@ -97,11 +93,12 @@ const s = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#F5F4F0',
   },
   titleWrap: {
     position: 'absolute',
     top: 140,
+    left: 0,
+    right: 0,
     alignItems: 'center',
   },
   badge: {
@@ -144,12 +141,17 @@ const s = StyleSheet.create({
   tikImage: {
     position: 'absolute',
     top: 220,
+    left: 0,
+    right: 0,
     width: 350,
     height: 350,
+    alignSelf: 'center',
   },
   loadingWrap: {
     position: 'absolute',
     bottom: 110,
+    left: 0,
+    right: 0,
     alignItems: 'center',
   },
   loadingContainer: {

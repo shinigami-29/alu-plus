@@ -11,6 +11,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useGameLogic } from '../GameLogicContext';
 import { useAuth } from '../../context/AuthContext';
 import { getAvatarSource } from '../../avatar/Avatar';
+import Layout from '../../components/AppLayout/Layout';
 // import GameLogic from '../../Game2/Gamelogic';
 
 type Props = { navigation: NativeStackNavigationProp<any> };
@@ -29,7 +30,8 @@ const WaitingScreen = ({ navigation }: Props) => {
   }, [gameStarted]);
 
   return (
-    <View style={s.container}>
+  <Layout>
+      <View style={s.container}>
       <Text style={s.title}>Waiting Room</Text>
 
       {myAvatarSource ? (
@@ -71,6 +73,7 @@ const WaitingScreen = ({ navigation }: Props) => {
         <Text style={s.backText}>Cancel</Text>
       </TouchableOpacity>
     </View>
+  </Layout>
   );
 };
 
