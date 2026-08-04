@@ -6,15 +6,14 @@ import {
   TouchableOpacity,
   StyleSheet,
   Modal,
-  Image,
   Animated,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { AlertTriangle } from 'lucide-react-native';
 import { useGameLogic } from '../GameLogicContext';
 import { useAuth } from '../../context/AuthContext';
-import { getAvatarSource } from '../../avatar/Avatar';
 import Layout from '../../components/AppLayout/Layout';
+import Avatar from '../../components/Avatar/Avatar';
 
 type Props = { navigation: NativeStackNavigationProp<any> };
 
@@ -89,11 +88,7 @@ const MultiplayerGameScreen = ({ navigation }: Props) => {
   } = useGameLogic();
 
   const { user, userProfile, recordGameResult } = useAuth();
-  const myAvatarSource = getAvatarSource(userProfile?.avatarId);
   const myPhoto = userProfile?.photoURL || user?.photoURL || null;
-
-  // opponent ko avatarId — GameLogic bata aauxa (room/invite/random match jahaan bata pani)
-  const opponentAvatarSource = getAvatarSource(opponentAvatarId);
 
   const [myWins, setMyWins] = useState(0);
   const [opponentWins, setOpponentWins] = useState(0);
@@ -203,35 +198,23 @@ const MultiplayerGameScreen = ({ navigation }: Props) => {
     setLeaveConfirmVisible(false);
   };
 
-  // Player card ko lagi avatar — avatarSource (preset) > photo > first letter
+  // Player card ko lagi avatar — avatarId (preset) > photo > initials
   const renderAvatar = (
     name: string,
     photo: string | null,
     active: boolean,
-    avatarSource?: any,
-  ) => {
-    if (avatarSource) {
-      return (
-        <Image
-          source={avatarSource}
-          style={[s.avatar, active && s.activeAvatarBorder]}
-        />
-      );
-    }
-    if (photo) {
-      return (
-        <Image
-          source={{ uri: photo }}
-          style={[s.avatar, active && s.activeAvatarBorder]}
-        />
-      );
-    }
-    return (
-      <View style={[s.avatarCircle, active && s.activeAvatarBorder]}>
-        <Text style={s.avatarLetter}>{name?.[0]?.toUpperCase() ?? '?'}</Text>
-      </View>
-    );
-  };
+    avatarId?: string | null,
+  ) => (
+    <Avatar
+      name={name}
+      photoURL={photo}
+      avatarId={avatarId}
+      size={36}
+      backgroundColor="#003893"
+      ring={active}
+      ringColor="#FFFDF8"
+    />
+  );
 
   // winning line ko style (position + animated draw), GameScreen jastai
   const lineStyle = useMemo(() => {
@@ -263,7 +246,7 @@ const MultiplayerGameScreen = ({ navigation }: Props) => {
               myName,
               myPhoto,
               currentPlayer === myRole,
-              myAvatarSource,
+              userProfile?.avatarId,
             )}
             <Text
               style={[
@@ -292,7 +275,7 @@ const MultiplayerGameScreen = ({ navigation }: Props) => {
               opponentName || '?',
               opponentPhoto,
               currentPlayer !== myRole,
-              opponentAvatarSource,
+              opponentAvatarId,
             )}
             <Text
               style={[
@@ -326,23 +309,21 @@ const MultiplayerGameScreen = ({ navigation }: Props) => {
               ]}
             >
               {isMyTurn ? (
-                myAvatarSource ? (
-                  <Image source={myAvatarSource} style={s.turnAvatarImg} />
-                ) : myPhoto ? (
-                  <Image source={{ uri: myPhoto }} style={s.turnAvatarImg} />
-                ) : (
-                  <Text style={s.turnAvatarLetter}>
-                    {myName?.[0]?.toUpperCase() ?? '?'}
-                  </Text>
-                )
-              ) : opponentAvatarSource ? (
-                <Image source={opponentAvatarSource} style={s.turnAvatarImg} />
-              ) : opponentPhoto ? (
-                <Image source={{ uri: opponentPhoto }} style={s.turnAvatarImg} />
+                <Avatar
+                  name={myName}
+                  photoURL={myPhoto}
+                  avatarId={userProfile?.avatarId}
+                  size={34}
+                  backgroundColor="#003893"
+                />
               ) : (
-                <Text style={s.turnAvatarLetter}>
-                  {(opponentName || '?')[0]?.toUpperCase() ?? '?'}
-                </Text>
+                <Avatar
+                  name={opponentName || '?'}
+                  photoURL={opponentPhoto}
+                  avatarId={opponentAvatarId}
+                  size={34}
+                  backgroundColor="#003893"
+                />
               )}
             </View>
             <View style={s.turnTextWrap}>
@@ -597,33 +578,6 @@ const s = StyleSheet.create({
     backgroundColor: '#eb533fe8',
     borderColor: '#0c2fde',
   },
-  avatar: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    marginBottom: 8,
-    borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  avatarCircle: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: '#003893',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 6,
-    borderWidth: 2,
-    borderColor: 'transparent',
-  },
-  activeAvatarBorder: {
-    borderColor: '#FFFDF8',
-  },
-  avatarLetter: {
-    color: '#fff',
-    fontSize: 15,
-    fontWeight: 'bold',
-  },
   badgeText: {
     color: '#3A2A1E',
     fontWeight: '700',
@@ -663,16 +617,6 @@ const s = StyleSheet.create({
     marginRight: 12,
     borderWidth: 2.5,
     backgroundColor: '#FFFDF8',
-  },
-  turnAvatarImg: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-  },
-  turnAvatarLetter: {
-    fontSize: 15,
-    fontWeight: 'bold',
-    color: '#003893',
   },
   turnTextWrap: {
     flexShrink: 1,

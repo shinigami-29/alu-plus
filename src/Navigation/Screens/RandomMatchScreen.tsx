@@ -6,13 +6,13 @@ import {
   TouchableOpacity,
   StyleSheet,
   Animated,
-  Image,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useGameLogic } from '../GameLogicContext';
 import { useAuth } from '../../context/AuthContext';
-import { getAvatarSource } from '../../avatar/Avatar';
 import Layout from '../../components/AppLayout/Layout';
+import Avatar from '../../components/Avatar/Avatar';
+import { COLORS } from '../../theme/colors';
 
 type Props = { navigation: NativeStackNavigationProp<any> };
 
@@ -35,11 +35,7 @@ const RandomMatchScreen = ({ navigation }: Props) => {
     user?.displayName ||
     user?.email?.split('@')[0] ||
     'You';
-  const avatarSource = getAvatarSource(userProfile?.avatarId);
   const photoURL = userProfile?.photoURL || user?.photoURL || null;
-
-  // opponent ko avatarId bata avatar source nikaalne — GameLogic bata aauxa
-  const opponentAvatarSource = getAvatarSource(opponentAvatarId);
 
   // Dots animation
   const dot1 = useRef(new Animated.Value(0)).current;
@@ -167,17 +163,14 @@ useEffect(() => {
       <View style={s.playersRow}>
         {/* My box */}
         <View style={s.playerBox}>
-          {avatarSource ? (
-            <Image source={avatarSource} style={s.avatar} />
-          ) : photoURL ? (
-            <Image source={{ uri: photoURL }} style={s.avatar} />
-          ) : (
-            <View style={s.avatarCircle}>
-              <Text style={s.avatarLetter}>
-                {displayName?.[0]?.toUpperCase() ?? 'Y'}
-              </Text>
-            </View>
-          )}
+          <Avatar
+            name={displayName}
+            photoURL={photoURL}
+            avatarId={userProfile?.avatarId}
+            size={64}
+            backgroundColor="#189292"
+            style={{ marginBottom: 10 }}
+          />
           <Text style={s.playerName} numberOfLines={1}>
             {displayName}
           </Text>
@@ -207,29 +200,16 @@ useEffect(() => {
         {/* Opponent box */}
         <View style={[s.playerBox, found ? s.foundBox : s.opponentBox]}>
           {found ? (
-            opponentAvatarSource ? (
-              <Animated.Image
-                source={opponentAvatarSource}
-                style={[s.avatar, { transform: [{ scale: foundScale }] }]}
+            <Animated.View style={{ transform: [{ scale: foundScale }] }}>
+              <Avatar
+                name={opponentName || 'Opponent'}
+                photoURL={opponentPhoto}
+                avatarId={opponentAvatarId}
+                size={64}
+                backgroundColor="#28a745"
+                style={{ marginBottom: 10 }}
               />
-            ) : opponentPhoto ? (
-              <Animated.Image
-                source={{ uri: opponentPhoto }}
-                style={[s.avatar, { transform: [{ scale: foundScale }] }]}
-              />
-            ) : (
-              <Animated.View
-                style={[
-                  s.avatarCircle,
-                  s.foundAvatar,
-                  { transform: [{ scale: foundScale }] },
-                ]}
-              >
-                <Text style={s.avatarLetter}>
-                  {opponentName?.[0]?.toUpperCase() ?? 'O'}
-                </Text>
-              </Animated.View>
-            )
+            </Animated.View>
           ) : (
             <Animated.View
               style={[s.questionCircle, { transform: [{ scale: pulse }] }]}
@@ -300,49 +280,25 @@ const s = StyleSheet.create({
   // Player box
   playerBox: {
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: 'rgba(255,255,255,0.10)',
     borderRadius: 20,
     padding: 20,
     alignItems: 'center',
     borderWidth: 2,
-    borderColor: '#182992',
-    elevation: 4,
+    borderColor: 'rgba(255,255,255,0.18)',
   },
   opponentBox: {
-    borderColor: '#dde3f0',
+    borderColor: 'rgba(255,255,255,0.18)',
     borderStyle: 'dashed',
   },
   foundBox: {
-    borderColor: '#28a745',
-  },
-  avatar: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    marginBottom: 10,
-  },
-  avatarCircle: {
-    width: 64,
-    height: 64,
-    borderRadius: 32,
-    backgroundColor: '#189292',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 10,
-  },
-  foundAvatar: {
-    backgroundColor: '#28a745',
-  },
-  avatarLetter: {
-    color: '#fff',
-    fontSize: 26,
-    fontWeight: 'bold',
+    borderColor: '#5FD68F',
   },
   questionCircle: {
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: '#dde3f0',
+    backgroundColor: 'rgba(255,255,255,0.10)',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 10,
@@ -350,32 +306,32 @@ const s = StyleSheet.create({
   questionMark: {
     fontSize: 28,
     fontWeight: 'bold',
-    color: '#9098a8',
+    color: 'rgba(245,239,224,0.7)',
   },
   playerName: {
     fontSize: 13,
     fontWeight: '700',
-    color: '#182992',
+    color: COLORS.textOnDark,
     marginBottom: 8,
     maxWidth: 90,
     textAlign: 'center',
   },
   readyBadge: {
-    backgroundColor: '#28a745',
+    backgroundColor: '#5FD68F',
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 20,
   },
   readyText: {
-    color: '#fff',
+    color: COLORS.navyDark,
     fontSize: 11,
     fontWeight: '700',
   },
   searchingBadge: {
-    backgroundColor: '#dde3f0',
+    backgroundColor: 'rgba(255,255,255,0.14)',
   },
   searchingText: {
-    color: '#9098a8',
+    color: 'rgba(245,239,224,0.7)',
     fontSize: 11,
     fontWeight: '700',
   },
@@ -407,15 +363,15 @@ const s = StyleSheet.create({
 
   // Cancel
   cancelBtn: {
-    backgroundColor: '#fff',
+    backgroundColor: 'rgba(255,255,255,0.10)',
     paddingHorizontal: 32,
     paddingVertical: 14,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#dde3f0', 
+    borderColor: 'rgba(255,255,255,0.18)',
   },
   cancelText: {
-    color: '#e57373',
+    color: '#F19191',
     fontWeight: '700',
     fontSize: 15,
   },

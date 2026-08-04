@@ -12,6 +12,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth } from '../context/AuthContext';
 import { AlertCircle, Eye, EyeOff } from 'lucide-react-native';
 import Layout from '../components/AppLayout/Layout';
+import { AuthHeader } from '../components/headers';
 
 type Props = { navigation: NativeStackNavigationProp<any> };
 
@@ -68,12 +69,12 @@ const RegisterScreen = ({ navigation }: Props) => {
 
   return (
     <Layout>
-      {/* Title */}
-      <Text style={s.appName}>आलु प्लस</Text>
-      <View style={s.titleWrap}>
-        <Text style={s.screenTitle}>Create Account</Text>
-        <Text style={s.screenSubtitle}>Sign up to get started</Text>
-      </View>
+      <View style={{ marginTop: 50 }} />
+      <AuthHeader
+        appName="आलु प्लस"
+        title="Create Account"
+        subtitle="Sign up to get started"
+      />
 
       {/* ===== Register card ===== */}
       <View style={s.card}>
@@ -217,31 +218,6 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     padding: 24,
   },
-  appName: {
-    fontSize: 38,
-    fontWeight: '900',
-    color: '#E0972A',
-    letterSpacing: 2,
-    marginBottom: 6,
-    textShadowColor: 'rgba(0,0,0,0.4)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 6,
-  },
-  titleWrap: {
-    alignItems: 'center',
-    marginBottom: 26,
-  },
-  screenTitle: {
-    fontSize: 21,
-    fontWeight: '800',
-    color: '#F5EFE0',
-    marginBottom: 4,
-  },
-  screenSubtitle: {
-    fontSize: 13,
-    color: '#8B93AE',
-    fontWeight: '500',
-  },
 
   // ===== Card wrapping the whole form =====
   card: {
@@ -291,10 +267,13 @@ const s = StyleSheet.create({
     alignItems: 'center',
     padding: 8,
     marginTop: 18,
+    width: '100%',
+    justifyContent: 'center',
   },
   loginLinkText: {
     color: '#8B93AE',
     fontSize: 14,
+    textAlign: 'center',
   },
   loginLinkBold: {
     color: '#E0972A',

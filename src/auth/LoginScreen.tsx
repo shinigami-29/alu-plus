@@ -6,17 +6,13 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  Modal,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
-  Image,
-  ImageBackground,
+  Modal, Image
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth } from '../context/AuthContext';
 import { AlertCircle, Eye, EyeOff, User } from 'lucide-react-native';
 import Layout from '../components/AppLayout/Layout';
+import { AuthHeader } from '../components/headers';
 
 type Props = { navigation: NativeStackNavigationProp<any> };
 
@@ -128,12 +124,12 @@ const LoginScreen = ({ navigation }: Props) => {
 
   return (
     <Layout>
-      {/* Title */}
-      <Text style={s.appName}>आलु प्लस</Text>
-      <View style={s.titleWrap}>
-        <Text style={s.screenTitle}>Welcome Back</Text>
-        <Text style={s.screenSubtitle}>Login to continue playing</Text>
-      </View>
+      <View style={{ marginTop: 50 }} />
+      <AuthHeader
+        appName="आलु प्लस"
+        title="Welcome Back"
+        subtitle="Login to continue playing"
+      />
 
       {/* ===== Login card ===== */}
       <View style={s.card}>
@@ -295,31 +291,6 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     padding: 24,
   },
-  appName: {
-    fontSize: 40,
-    fontWeight: '900',
-    color: '#E0972A',
-    letterSpacing: 3,
-    marginBottom: 4,
-    textShadowColor: 'rgba(0,0,0,0.4)',
-    textShadowOffset: { width: 0, height: 2 },
-    textShadowRadius: 6,
-  },
-  titleWrap: {
-    alignItems: 'center',
-    marginBottom: 28,
-  },
-  screenTitle: {
-    fontSize: 21,
-    fontWeight: '800',
-    color: '#F5EFE0',
-    marginBottom: 4,
-  },
-  screenSubtitle: {
-    fontSize: 13,
-    color: '#8B93AE',
-    fontWeight: '500',
-  },
 
   // ===== Card wrapping the whole form =====
   card: {
@@ -440,10 +411,13 @@ const s = StyleSheet.create({
     alignItems: 'center',
     padding: 8,
     marginTop: 18,
+    width: '100%',
+    justifyContent: 'center',
   },
   registerLinkText: {
     color: '#8B93AE',
     fontSize: 14,
+    textAlign: 'center',
   },
   registerLinkBold: {
     color: '#E0972A',

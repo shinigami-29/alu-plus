@@ -10,9 +10,10 @@ import {
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useGameLogic } from '../GameLogicContext';
-import { ArrowLeft, RefreshCw, Trophy, Crown } from 'lucide-react-native';
-import { AVATAR_LIST, getAvatarSource } from '../../avatar/Avatar';
+import { RefreshCw, Trophy, Crown } from 'lucide-react-native';
 import Layout from '../../components/AppLayout/Layout';
+import Avatar from '../../components/Avatar/Avatar';
+import { COLORS } from '../../theme/colors';
 type Props = { navigation: NativeStackNavigationProp<any> };
 
 // Aba wins haru weekly reset hunxa (Monday–Sunday). Yo function le "resets in Xd"
@@ -36,16 +37,16 @@ const LeaderboardScreen = ({ navigation }: Props) => {
 
   const getRankColor = (index: number) => {
     if (index === 0) return '#F5A623'; // gold
-    if (index === 1) return '#9098a8'; // silver
-    if (index === 2) return '#CD7F32'; // bronze
-    return '#182992';
+    if (index === 1) return '#C7CBE0'; // silver
+    if (index === 2) return '#CD9662'; // bronze
+    return COLORS.textOnDark;
   };
 
   const getRankBg = (index: number) => {
-    if (index === 0) return '#FFF6E5';
-    if (index === 1) return '#F1F2F5';
-    if (index === 2) return '#FBEEE3';
-    return '#EEF1F7';
+    if (index === 0) return 'rgba(245,166,35,0.18)';
+    if (index === 1) return 'rgba(199,203,224,0.16)';
+    if (index === 2) return 'rgba(205,150,98,0.16)';
+    return 'rgba(255,255,255,0.08)';
   };
 
   const goToProfile = (item: {
@@ -67,72 +68,28 @@ const LeaderboardScreen = ({ navigation }: Props) => {
     item: { name: string; photo?: string | null; avatarId?: string | null },
     size: number,
     bg: string,
-  ) => {
-    const avatarSource = getAvatarSource(item?.avatarId);
-
-    if (avatarSource) {
-      return (
-        <Image
-          source={avatarSource}
-          style={[
-            styleAvatar(size),
-            { borderWidth: 1, borderColor: '#eef1f7' },
-          ]}
-        />
-      );
-    }
-
-    if (item?.photo) {
-      return (
-        <Image
-          source={{ uri: item.photo }}
-          style={[
-            styleAvatar(size),
-            { borderWidth: 1, borderColor: '#eef1f7' },
-          ]}
-        />
-      );
-    }
-
-    return (
-      <View style={[styleAvatar(size), { backgroundColor: bg }]}>
-        <Text
-          style={{ fontSize: size * 0.42, fontWeight: 'bold', color: '#fff' }}
-        >
-          {item?.name?.[0]?.toUpperCase()}
-        </Text>
-      </View>
-    );
-  };
-
-  const styleAvatar = (size: number) => ({
-    width: size,
-    height: size,
-    borderRadius: size / 2,
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
-  });
+  ) => (
+    <Avatar
+      name={item?.name}
+      photoURL={item?.photo}
+      avatarId={item?.avatarId}
+      size={size}
+      backgroundColor={bg}
+    />
+  );
 
   return (
-    <Layout withScroll={false}>
+    <Layout
+      withScroll={false}
+      header={{
+        type: 'screen',
+        title: 'Leaderboard',
+        onBack: () => navigation.goBack(),
+        rightIcon: <RefreshCw size={18} color={COLORS.textOnDark} />,
+        onRightPress: fetchLeaderboard,
+      }}
+    >
       <View style={s.container}>
-        {/* Header */}
-        {/* <View style={s.header}> */}
-        <View style={s.header}>
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            style={s.iconBtn}
-          >
-            <ArrowLeft size={20} color="#182992" />
-          </TouchableOpacity>
-          <View style={s.titleRow}>
-            <Trophy size={25} color="#f39d14" />
-            <Text style={s.title}>Leaderboard</Text>
-          </View>
-          <TouchableOpacity onPress={fetchLeaderboard} style={s.iconBtn}>
-            <RefreshCw size={18} color="#182992" />
-          </TouchableOpacity>
-        </View>
 
         {/* Weekly reset note */}
         <View style={s.resetNoteWrap}>
@@ -279,36 +236,6 @@ const s = StyleSheet.create({
   container: {
     flex: 1,
   },
- 
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    // paddingTop: 50,
-    paddingBottom: 16,
-  },
-  iconBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#eef1f7',
-  },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  title: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#d8d8f5',
-  },
-
   resetNoteWrap: {
     alignItems: 'center',
     marginBottom: 4,
@@ -316,8 +243,8 @@ const s = StyleSheet.create({
   resetNoteText: {
     fontSize: 12,
     fontWeight: '600',
-    color: '#9098a8',
-    backgroundColor: '#fff',
+    color: 'rgba(245,239,224,0.75)',
+    backgroundColor: 'rgba(255,255,255,0.10)',
     paddingHorizontal: 12,
     paddingVertical: 4,
     borderRadius: 10,
@@ -335,12 +262,12 @@ const s = StyleSheet.create({
   topCard: {
     alignItems: 'center',
     flex: 1,
-    backgroundColor: '#fff',
+    backgroundColor: 'rgba(255,255,255,0.10)',
     borderRadius: 18,
     paddingVertical: 16,
     paddingHorizontal: 8,
     borderWidth: 1,
-    borderColor: '#eef1f7',
+    borderColor: 'rgba(255,255,255,0.16)',
   },
   firstCard: {
     marginBottom: 12,
@@ -364,7 +291,7 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 2,
-    borderColor: '#fff',
+    borderColor: COLORS.navyDark,
   },
   rankPipText: {
     color: '#fff',
@@ -374,12 +301,12 @@ const s = StyleSheet.create({
   topName: {
     fontSize: 12,
     fontWeight: '700',
-    color: '#182992',
+    color: COLORS.textOnDark,
     textAlign: 'center',
   },
   topWins: {
     fontSize: 11,
-    color: '#9098a8',
+    color: 'rgba(245,239,224,0.6)',
     marginTop: 2,
     fontWeight: '600',
   },
@@ -392,21 +319,16 @@ const s = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: 'rgba(255,255,255,0.08)',
     borderRadius: 16,
     padding: 12,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: '#eef1f7',
-    shadowColor: '#182992',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
+    borderColor: 'rgba(255,255,255,0.14)',
   },
   myRow: {
-    backgroundColor: '#DCE6FF',
-    borderColor: '#182992',
+    backgroundColor: 'rgba(224,151,42,0.16)',
+    borderColor: COLORS.gold,
     borderWidth: 1.5,
   },
   rankBadge: {
@@ -425,21 +347,21 @@ const s = StyleSheet.create({
     flex: 1,
     fontSize: 15,
     fontWeight: '700',
-    color: '#182992',
+    color: COLORS.textOnDark,
     marginLeft: 12,
   },
   myNameText: {
-    color: '#0b1a5c',
+    color: COLORS.gold,
   },
   youBadge: {
-    backgroundColor: '#182992',
+    backgroundColor: COLORS.gold,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 6,
     marginRight: 8,
   },
   youBadgeText: {
-    color: '#fff',
+    color: COLORS.navyDark,
     fontSize: 9,
     fontWeight: 'bold',
   },
@@ -447,27 +369,27 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'baseline',
     gap: 4,
-    backgroundColor: '#F5F4F0',
+    backgroundColor: 'rgba(255,255,255,0.08)',
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 12,
   },
   myWinsPill: {
-    backgroundColor: '#fff',
+    backgroundColor: 'rgba(255,255,255,0.14)',
   },
   wins: {
     fontSize: 14,
     fontWeight: 'bold',
-    color: '#182992',
+    color: COLORS.textOnDark,
   },
   winsLabel: {
     fontSize: 10,
-    color: '#9098a8',
+    color: 'rgba(245,239,224,0.6)',
     fontWeight: '600',
   },
 
   myTopCard: {
-    borderColor: '#182992',
+    borderColor: COLORS.gold,
     borderWidth: 2,
   },
 
@@ -481,21 +403,21 @@ const s = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: '#fff',
+    backgroundColor: 'rgba(255,255,255,0.10)',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 6,
     borderWidth: 1,
-    borderColor: '#eef1f7',
+    borderColor: 'rgba(255,255,255,0.16)',
   },
   emptyText: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#182992',
+    color: COLORS.textOnDark,
   },
   emptySubText: {
     fontSize: 13,
-    color: '#9098a8',
+    color: 'rgba(245,239,224,0.6)',
     fontWeight: '500',
   },
 });

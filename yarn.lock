@@ -6197,10 +6197,10 @@ react-is@^19.2.3:
   resolved "https://registry.npmjs.org/react-is/-/react-is-19.2.6.tgz"
   integrity sha512-XjBR15BhXuylgWGuslhDKqlSayuqvqBX91BP8pauG8kd1zY8kotkNWbXksTCNRarse4kuGbe2kIY05ARtwNIvw==
 
-react-native-fbsdk-next@^13.4.3:
-  version "13.4.3"
-  resolved "https://registry.yarnpkg.com/react-native-fbsdk-next/-/react-native-fbsdk-next-13.4.3.tgz#efdbe47690c7addf5b14970e565814149b00a2d5"
-  integrity sha512-xGymFmocik7/159i6x/bGx4AHuEk3MFMkVl4MlW7JDuN8LIpbGU76WljEOO+Ucdn248nDlo1EG//CXHMGxZTMg==
+react-native-fbsdk-next@13.4.0:
+  version "13.4.0"
+  resolved "https://registry.yarnpkg.com/react-native-fbsdk-next/-/react-native-fbsdk-next-13.4.0.tgz#87d9221ee668971753677dd2355f6006bb8c6fbb"
+  integrity sha512-ygDfgGWGPEXBCvVv6wuC8r+St1fmCESxikibpqyFqFONwNypt024ji9E8vOOxzxNOoOP/SqQBczV/+qHHd56mg==
 
 react-native-image-picker@^8.2.1:
   version "8.2.1"

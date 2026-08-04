@@ -4,13 +4,14 @@ import {
   Text,
   FlatList,
   StyleSheet,
-  TouchableOpacity,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ArrowLeft, History, Swords, RefreshCw } from 'lucide-react-native';
+import { Swords, RefreshCw } from 'lucide-react-native';
 import { useGameLogic } from '../GameLogicContext';
 
 import Layout from '../../components/AppLayout/Layout';
+import Avatar from '../../components/Avatar/Avatar';
+import { COLORS } from '../../theme/colors';
 
 type Props = { navigation: NativeStackNavigationProp<any> };
 
@@ -42,28 +43,17 @@ const MatchHistoryScreen = ({ navigation }: Props) => {
   };
 
   return (
-    <Layout withScroll={false}>
+    <Layout
+      withScroll={false}
+      header={{
+        type: 'screen',
+        title: 'Match History',
+        onBack: () => navigation.goBack(),
+        rightIcon: <RefreshCw size={20} color={COLORS.textOnDark} />,
+        onRightPress: fetchMatchHistory,
+      }}
+    >
       <View style={s.container}>
-        <View style={s.header}>
-          <TouchableOpacity
-            onPress={() => navigation.goBack()}
-            style={s.iconBtn}
-          >
-            <ArrowLeft size={20} color="#182992" />
-          </TouchableOpacity>
-          <View style={s.titleRow}>
-            <History
-              size={19}
-              // color="#182992"
-              color="#bec0d3"
-            />
-            <Text style={s.headerTitle}>Match History</Text>
-          </View>
-          <TouchableOpacity onPress={fetchMatchHistory} style={s.iconBtn}>
-            <RefreshCw size={20} color="#182992" />
-          </TouchableOpacity>
-        </View>
-
         <FlatList
           data={matchHistory as SessionRecord[]}
           keyExtractor={(item, index) => item.roomCode + item.timestamp + index}
@@ -83,17 +73,9 @@ const MatchHistoryScreen = ({ navigation }: Props) => {
             <View style={s.card}>
               <View style={s.rowTop}>
                 <View style={s.matchupRow}>
-                  <View style={s.avatarSmall}>
-                    <Text style={s.avatarSmallText}>
-                      {myName?.[0]?.toUpperCase() ?? 'Y'}
-                    </Text>
-                  </View>
+                  <Avatar name={myName} size={24} backgroundColor={COLORS.navy} />
                   <Text style={s.vsText}>vs</Text>
-                  <View style={[s.avatarSmall, s.avatarOpponent]}>
-                    <Text style={s.avatarSmallText}>
-                      {item.opponent?.[0]?.toUpperCase() ?? '?'}
-                    </Text>
-                  </View>
+                  <Avatar name={item.opponent} size={24} backgroundColor={COLORS.textMuted} />
                   <Text style={s.opponentText} numberOfLines={1}>
                     {item.opponent}
                   </Text>
@@ -102,23 +84,23 @@ const MatchHistoryScreen = ({ navigation }: Props) => {
               </View>
 
               <View style={s.statsRow}>
-                <View style={[s.statBadge, { backgroundColor: '#E9FBF0' }]}>
-                  <Text style={[s.statValue, { color: '#28C76F' }]}>
+                <View style={[s.statBadge, { backgroundColor: 'rgba(95,214,143,0.16)' }]}>
+                  <Text style={[s.statValue, { color: '#5FD68F' }]}>
                     {item.wins}
                   </Text>
-                  <Text style={[s.statLabel, { color: '#28C76F' }]}>Win</Text>
+                  <Text style={[s.statLabel, { color: '#5FD68F' }]}>Win</Text>
                 </View>
-                <View style={[s.statBadge, { backgroundColor: '#FDEBEE' }]}>
-                  <Text style={[s.statValue, { color: '#FF4B6E' }]}>
+                <View style={[s.statBadge, { backgroundColor: 'rgba(241,145,145,0.16)' }]}>
+                  <Text style={[s.statValue, { color: '#F19191' }]}>
                     {item.losses}
                   </Text>
-                  <Text style={[s.statLabel, { color: '#FF4B6E' }]}>Loss</Text>
+                  <Text style={[s.statLabel, { color: '#F19191' }]}>Loss</Text>
                 </View>
-                <View style={[s.statBadge, { backgroundColor: '#FFF4DE' }]}>
-                  <Text style={[s.statValue, { color: '#F5A623' }]}>
+                <View style={[s.statBadge, { backgroundColor: 'rgba(242,200,121,0.16)' }]}>
+                  <Text style={[s.statValue, { color: '#F2C879' }]}>
                     {item.draws}
                   </Text>
-                  <Text style={[s.statLabel, { color: '#F5A623' }]}>Draw</Text>
+                  <Text style={[s.statLabel, { color: '#F2C879' }]}>Draw</Text>
                 </View>
               </View>
             </View>
@@ -134,34 +116,6 @@ export default MatchHistoryScreen;
 const s = StyleSheet.create({
   container: {
     flex: 1,
-    // backgroundColor: '#F5F4F0'
-    // backgroundColor: '#cbd8f4',
-  },
-
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 16,
-  },
-  iconBtn: {
-    width: 38,
-    height: 38,
-    borderRadius: 19,
-    backgroundColor: '#fff',
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: '#eef1f7',
-  },
-  titleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  headerTitle: {
-    fontSize: 22,
-    fontWeight: '700',
-    color: '#cbcbdf',
-    // color: '#182992'
   },
 
   listContent: { paddingHorizontal: 20, paddingBottom: 30 },
@@ -177,37 +131,32 @@ const s = StyleSheet.create({
     height: 64,
     borderRadius: 32,
 
-    backgroundColor: '#fff',
+    backgroundColor: 'rgba(255,255,255,0.10)',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 6,
     borderWidth: 1,
-    borderColor: '#eef1f7',
+    borderColor: 'rgba(255,255,255,0.16)',
   },
 
   emptyText: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#cdcdf9',
+    color: COLORS.textOnDark,
   },
   emptySubText: {
     fontSize: 13,
-    color: '#9098a8',
+    color: 'rgba(245,239,224,0.6)',
     fontWeight: '500',
   },
 
   card: {
-    backgroundColor: '#fff',
+    backgroundColor: 'rgba(255,255,255,0.08)',
     borderRadius: 16,
     padding: 14,
     marginBottom: 10,
     borderWidth: 1,
-    borderColor: '#eef1f7',
-    shadowColor: '#182992',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.04,
-    shadowRadius: 4,
-    elevation: 1,
+    borderColor: 'rgba(255,255,255,0.14)',
   },
   rowTop: {
     marginBottom: 12,
@@ -218,37 +167,21 @@ const s = StyleSheet.create({
     gap: 6,
     marginBottom: 4,
   },
-  avatarSmall: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: '#182992',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  avatarOpponent: {
-    backgroundColor: '#9098a8',
-  },
-  avatarSmallText: {
-    fontSize: 11,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
   vsText: {
     fontSize: 11,
-    color: '#9098a8',
+    color: 'rgba(245,239,224,0.6)',
     fontWeight: '600',
   },
   opponentText: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#182992',
+    color: COLORS.textOnDark,
     marginLeft: 2,
     flexShrink: 1,
   },
   dateText: {
     fontSize: 11,
-    color: '#9098a8',
+    color: 'rgba(245,239,224,0.6)',
   },
   statsRow: {
     flexDirection: 'row',
