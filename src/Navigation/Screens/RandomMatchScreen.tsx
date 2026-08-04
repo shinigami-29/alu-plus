@@ -133,19 +133,6 @@ const RandomMatchScreen = ({ navigation }: Props) => {
     }
   }, [screen]);
 
-  const statusRef = useRef(randomMatchStatus);
-useEffect(() => {
-  statusRef.current = randomMatchStatus;
-}, [randomMatchStatus]);
-
-useEffect(() => {
-  return () => {
-    if (statusRef.current === 'searching') {
-      cancelRandomMatch();
-    }
-  };
-}, []);
-
   const handleCancel = () => {
     cancelRandomMatch();
     navigation.goBack();
@@ -412,7 +399,7 @@ const s = StyleSheet.create({
     paddingVertical: 14,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#dde3f0', 
+    borderColor: '#dde3f0',
   },
   cancelText: {
     color: '#e57373',

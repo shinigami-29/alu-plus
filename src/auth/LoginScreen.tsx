@@ -7,11 +7,7 @@ import {
   StyleSheet,
   ActivityIndicator,
   Modal,
-  KeyboardAvoidingView,
-  Platform,
-  ScrollView,
   Image,
-  ImageBackground,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth } from '../context/AuthContext';
@@ -73,19 +69,6 @@ const LoginScreen = ({ navigation }: Props) => {
       })
       .finally(() => setLoading(false));
   };
-
-  // const handleGoogleLogin = () => {
-  //   setLoading(true);
-  //   loginWithGoogle()
-  //     .then(() => {
-  //       navigation.replace('Mode');
-  //     })
-  //     .catch(err => {
-  //       showAlert('Google Login Failed', getFriendlyAuthError(err.code));
-  //     })
-  //     .finally(() => setLoading(false));
-  // };
-
   const handleGoogleLogin = () => {
     setLoading(true);
     loginWithGoogle()
@@ -128,7 +111,8 @@ const LoginScreen = ({ navigation }: Props) => {
 
   return (
     <Layout>
-      {/* Title */}
+     <View style={s.container}>
+       {/* Title */}
       <Text style={s.appName}>आलु प्लस</Text>
       <View style={s.titleWrap}>
         <Text style={s.screenTitle}>Welcome Back</Text>
@@ -281,6 +265,7 @@ const LoginScreen = ({ navigation }: Props) => {
           </View>
         </View>
       </Modal>
+     </View>
     </Layout>
   );
 };

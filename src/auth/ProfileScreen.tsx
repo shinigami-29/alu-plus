@@ -421,7 +421,7 @@ const ProfileScreen = ({ navigation }: Props) => {
 
             <TouchableOpacity
               style={s.modalCloseBtnFull}
-              activeOpacity={0.7}
+              activeOpacity={0.7} 
               onPress={() => setAvatarPickerVisible(false)}
             >
               <Text style={s.modalCancelText}>Close</Text>

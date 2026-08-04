@@ -68,7 +68,8 @@ const RegisterScreen = ({ navigation }: Props) => {
 
   return (
     <Layout>
-      {/* Title */}
+      <View style={s.container}>
+        {/* Title */}
       <Text style={s.appName}>आलु प्लस</Text>
       <View style={s.titleWrap}>
         <Text style={s.screenTitle}>Create Account</Text>
@@ -203,6 +204,7 @@ const RegisterScreen = ({ navigation }: Props) => {
           </View>
         </View>
       </Modal>
+      </View>
     </Layout>
   );
 };
