@@ -46,7 +46,7 @@ const GameLogic = (myAvatarId?: string | null, myPhoto?: string | null) => {
     }[]
   >([]);
 
-  // ROOM LIST (LOBBY) — waiting + playing dubai status haru
+  // ROOM LIST (LOBBY) — waiting + playing both status haru
   const [allRooms, setAllRooms] = useState<
     {
       roomCode: string;
@@ -81,7 +81,7 @@ const GameLogic = (myAvatarId?: string | null, myPhoto?: string | null) => {
 
   // myRole — Firebase listener (listenToRoom) jasto stale-closure hune
   // ठाउँमा sadhai latest value padhna paos bhanera myRoleRef pani राखेको।
-  // setMyRole() call garda state ra ref dubai sync huncha.
+  // when setMyRole() is call both state and ref both will be  sync.
   const [myRole, setMyRoleState] = useState<'X' | 'O' | null>(null);
   const myRoleRef = useRef<'X' | 'O' | null>(null);
   const setMyRole = (role: 'X' | 'O' | null) => {
@@ -100,7 +100,7 @@ const GameLogic = (myAvatarId?: string | null, myPhoto?: string | null) => {
   const [gameStarted, setGameStarted] = useState(false);
   const [multiplayerError, setMultiplayerError] = useState('');
 
-  // REMATCH tracking — both players agree bhaye matra board reset huncha
+  // REMATCH tracking — if both players agree to rematch then only board reset
   const [myRematchRequested, setMyRematchRequested] = useState(false);
   const [opponentRematchRequested, setOpponentRematchRequested] =
     useState(false);
@@ -213,7 +213,7 @@ const GameLogic = (myAvatarId?: string | null, myPhoto?: string | null) => {
 
   // CREATE ROOM
   const generateRoomCode = (): void => {
-    if (!myName) return;
+    if (!myName || myName === 'undefined' || myName.trim() === '') return;
     const code = Math.floor(100000 + Math.random() * 900000).toString();
 
     const ref = database().ref(`/rooms/${code}`);
@@ -228,12 +228,48 @@ const GameLogic = (myAvatarId?: string | null, myPhoto?: string | null) => {
 
         roomRef.current = ref;
 
+        // ref
+        //   .set({
+        //     roomName: roomName || `${myName}'s Room`,
+        //     host: myName,
+        //     hostUid: auth().currentUser?.uid ?? null,
+        //     // hostPhoto: auth().currentUser?.photoURL ?? null,
+        //     hostPhoto: myPhoto ?? null,
+        //     hostAvatarId: myAvatarId ?? null,
+        //     guest: null,
+        //     guestUid: null,
+        //     guestPhoto: null,
+        //     guestAvatarId: null,
+        //     board: Array(9).fill(null),
+        //     currentTurn: 'X',
+        //     lastFirst: 'X',
+        //     winner: null,
+        //     isDraw: false,
+        //     status: 'waiting',
+        //   })
+        //   .then(() => {
+        //     // Auto-remove the room if host disconnects (app close, crash, or
+        //     // network loss) — otherwise it stays stuck in "waiting"/"playing"
+        //     // state and shows up as a zombie room in RoomListScreen even after
+        //     // refresh, since the data never gets cleaned up.
+        //     ref.onDisconnect().remove();
+        //     ref.onDisconnect().remove();
+
+        //     setRoomCode(code);
+        //     setMyRole('X');
+        //     setIsMyTurn(true);
+        //     setOpponentAvatarId(null);
+        //     startNewSession(code);
+
+        //     listenToRoom(code);
+
+        //     setScreen('waiting');
+        //   });
         ref
           .set({
             roomName: roomName || `${myName}'s Room`,
             host: myName,
             hostUid: auth().currentUser?.uid ?? null,
-            // hostPhoto: auth().currentUser?.photoURL ?? null,
             hostPhoto: myPhoto ?? null,
             hostAvatarId: myAvatarId ?? null,
             guest: null,
@@ -249,10 +285,10 @@ const GameLogic = (myAvatarId?: string | null, myPhoto?: string | null) => {
           })
           .then(() => {
             // Host disconnect huda (app close/crash/net loss) room
-            // automatically hataune — natra "waiting"/"playing" ma
-            // zombie room basirahancha ra RoomListScreen ma purano
-            // room dekhiraincha (refresh garda pani hatdaina, kina ki
-            // database ma data nai stuck cha)
+            // automatically hataune — natra "waiting"/"playing" state ma
+            // zombie room basirahancha ra RoomListScreen ma purano room
+            // dekhiraincha (refresh garda pani hatdaina, kina ki database
+            // ma data nai stuck cha)
             ref.onDisconnect().remove();
 
             setRoomCode(code);
@@ -276,64 +312,77 @@ const GameLogic = (myAvatarId?: string | null, myPhoto?: string | null) => {
 
     const ref = database().ref(`/rooms/${joinCode}`);
 
-    ref
-      .once('value')
-      .then(snapshot => {
-        const data = snapshot.val();
+    ref.once('value').then(snapshot => {
+      const data = snapshot.val();
 
-        if (!data) {
-          setMultiplayerError('Room not found');
-          return;
-        }
+      if (!data) {
+        setMultiplayerError('Room not found');
+        return;
+      }
 
-        if (data.status !== 'waiting' && data.status !== 'playing') {
-          setMultiplayerError('Room not found');
-          return;
-        }
+      if (data.status !== 'waiting' && data.status !== 'playing') {
+        setMultiplayerError('Room not found');
+        return;
+      }
 
-        if (data.status === 'playing' && data.guest !== myName) {
-          setMultiplayerError('Room is full');
-          return;
-        }
+      if (data.status === 'playing' && data.guest !== myName) {
+        setMultiplayerError('Room is full');
+        return;
+      }
 
-        const isHost = data.host === myName;
+      const isHost = data.host === myName;
 
-        ref
-          .update({
-            guest: isHost ? data.guest : myName,
-            guestUid: isHost ? data.guestUid : auth().currentUser?.uid ?? null,
-            guestPhoto: isHost ? data.guestPhoto : myPhoto ?? null,
-            status: 'playing',
-            guestAvatarId: isHost
-              ? data.guestAvatarId ?? null
-              : myAvatarId ?? null,
-          })
-          .then(() => {
-            roomRef.current = ref;
+      ref
+        .update({
+          guest: isHost ? data.guest : myName,
+          guestUid: isHost ? data.guestUid : auth().currentUser?.uid ?? null,
+          guestPhoto: isHost ? data.guestPhoto : myPhoto ?? null,
+          status: 'playing',
+          guestAvatarId: isHost
+            ? data.guestAvatarId ?? null
+            : myAvatarId ?? null,
+        })
+        .then(() => {
+          roomRef.current = ref;
 
-            // Guest side pani disconnect huda room hataune — natra
-            // guest crash/net-loss huda room "playing" ma stuck rahancha
+          // // Guest side pani disconnect huda room hataune — natra
+          // // guest crash/net-loss huda room "playing" ma stuck rahancha
+          // ref.onDisconnect().remove();
+          if (isHost) {
+            // Host rejoin bhako ho — host disconnect huda room nai
+            // hataune (jasto generateRoomCode ma cha)
             ref.onDisconnect().remove();
+          } else {
+            // Guest disconnect huda pura room hataaunu hudaina — host
+            // aile pani active hunsakcha. Guest field matra clear garne
+            ref.onDisconnect().update({
+              guest: null,
+              guestUid: null,
+              guestPhoto: null,
+              guestAvatarId: null,
+              status: 'waiting',
+            });
+          }
 
-            setRoomCode(joinCode);
-            setMyRole(isHost ? 'X' : 'O');
-            setIsMyTurn(
-              isHost ? data.currentTurn === 'X' : data.currentTurn === 'O',
-            );
-            setOpponentName(isHost ? data.guest : data.host);
-            setOpponentPhoto(
-              isHost ? data.guestPhoto ?? null : data.hostPhoto ?? null,
-            );
-            setOpponentAvatarId(
-              isHost ? data.guestAvatarId ?? null : data.hostAvatarId ?? null,
-            );
-            setGameStarted(true);
-            startNewSession(joinCode);
-            listenToRoom(joinCode);
-            setScreen('multiplayerGame');
-          });
-      })
-      .catch(err => console.log(err));
+          setRoomCode(joinCode);
+          setMyRole(isHost ? 'X' : 'O');
+          setIsMyTurn(
+            isHost ? data.currentTurn === 'X' : data.currentTurn === 'O',
+          );
+          setOpponentName(isHost ? data.guest : data.host);
+          setOpponentPhoto(
+            isHost ? data.guestPhoto ?? null : data.hostPhoto ?? null,
+          );
+          setOpponentAvatarId(
+            isHost ? data.guestAvatarId ?? null : data.hostAvatarId ?? null,
+          );
+          setGameStarted(true);
+          startNewSession(joinCode);
+          listenToRoom(joinCode);
+          setScreen('multiplayerGame');
+        });
+    });
+    // .catch(err => console.log(err));
   };
 
   // JOIN ROOM BY EXPLICIT CODE
@@ -687,17 +736,44 @@ const GameLogic = (myAvatarId?: string | null, myPhoto?: string | null) => {
         });
     }
 
+    const currentRef = roomRef.current;
+
     // Explicitly leave garda pahile pending onDisconnect hook cancel garne —
     // natra room already manually remove vaisakepachi, purano onDisconnect
     // hook le arko naya room (same ref reuse vaye) lai galat hataauna sakcha
-    roomRef.current.onDisconnect().cancel();
+    // roomRef.current.onDisconnect().cancel();
 
-    roomRef.current
-      .remove()
-      .then(() => console.log('Room removed successfully'))
-      .catch(err => console.log('Room remove FAILED:', err.message));
+    // roomRef.current
+    //   .remove()
+    //   .then(() => console.log('Room removed successfully'))
+    //   .catch(err => console.log('Room remove FAILED:', err.message));
 
-    roomRef.current?.off();
+    // Cancel any pending onDisconnect hook first, then remove/update
+    // the room — avoids a race between the manual action and the
+    // onDisconnect hook both firing
+    currentRef
+      .onDisconnect()
+      .cancel()
+      .then(() => {
+        if (myRole === 'X') {
+          // Host: delete the whole room
+          return currentRef.remove();
+        } else {
+          // Guest: keep the room alive, just clear my own fields
+          return currentRef.update({
+            guest: null,
+            guestUid: null,
+            guestPhoto: null,
+            guestAvatarId: null,
+            status: 'waiting',
+          });
+        }
+      })
+      .then(() => console.log('leaveRoom cleanup successful'))
+      .catch(err => console.log('leaveRoom cleanup FAILED:', err.message));
+
+    // roomRef.current?.off();
+    currentRef.off();
 
     roomRef.current = null;
     listenedCodeRef.current = null;

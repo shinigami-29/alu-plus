@@ -176,8 +176,8 @@ const MultiplayerScreen = ({ navigation }: Props) => {
   }
 
   return (
-    <Layout
-      withScroll
+    <Layout 
+      withScroll={false}
       header={{
         type: 'screen',
         title: 'Play with Friends',

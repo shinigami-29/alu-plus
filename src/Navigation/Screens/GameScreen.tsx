@@ -14,7 +14,7 @@ import Layout from '../../components/AppLayout/Layout';
 
 type Props = { navigation: NativeStackNavigationProp<any> };
 
-// NEW: sabai possible winning combos (row, column, diagonal)
+// possible winning combos (row, column, diagonal)
 const WIN_LINES = [
   [0, 1, 2],
   [3, 4, 5],
@@ -26,7 +26,7 @@ const WIN_LINES = [
   [2, 4, 6],
 ];
 
-// NEW: board bata kun 3 ta cell le win banayo tyo pattaunu (indices matra)
+// 3 match line (if it win it cut and show draw line)
 function findWinningLine(board: any[]): number[] | null {
   for (const line of WIN_LINES) {
     const [a, b, c] = line;
@@ -68,11 +68,11 @@ const GameScreen = ({ navigation }: Props) => {
   const { board, currentPlayer, winner, isDraw, handlePress, resetGame } =
     useGameLogic();
 
-  // Session-based win count (local matra, reset huda 0 huncha)
+  // Session-based win count (local only,when reset it become 0 )
   const [p1Wins, setP1Wins] = useState(0);
   const [p2Wins, setP2Wins] = useState(0);
 
-  // NEW: popup lai instantly hoina, line kheychepachi dekhaune
+  // popup lai instantly hoina, line kheychepachi dekhaune
   const [popupVisible, setPopupVisible] = useState(false);
   const lineAnim = useRef(new Animated.Value(0)).current;
   const popupTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
@@ -91,7 +91,7 @@ const GameScreen = ({ navigation }: Props) => {
     [board, winner]
   );
 
-  // Winner change vayo bhane count badhaune
+  // increase count when winner is change
   useEffect(() => {
     if (winner === 'X') {
       setP1Wins(prev => prev + 1);
@@ -100,7 +100,7 @@ const GameScreen = ({ navigation }: Props) => {
     }
   }, [winner]);
 
-  // NEW: line draw hune ani tyo pura khelchepachi matra popup deखिने
+  // after winning it show winner line then it show popup
   useEffect(() => {
     if (popupTimerRef.current) clearTimeout(popupTimerRef.current);
 
@@ -236,7 +236,7 @@ const GameScreen = ({ navigation }: Props) => {
       </View>
 
       <TouchableOpacity
-        style={s.leaveBtn}
+        style={[s.leaveBtn,{ backgroundColor: 'rgba(242,200,121,0.18)'}]}
         activeOpacity={0.85}
         onPress={() => {
           handleFullReset();
@@ -477,20 +477,27 @@ const s = StyleSheet.create({
   },
 
   leaveBtn: {
-    backgroundColor: 'rgba(255,251,244,0.9)',
-    borderWidth: 1,
-    borderColor: 'rgba(179,27,52,0.35)',
-    paddingVertical: 13,
-    paddingHorizontal: 34,
-    borderRadius: 14,
-    alignItems: 'center',
-    alignSelf: 'center',
+  //   backgroundColor: 'rgba(255,251,244,0.9)',
+  //   borderWidth: 1,
+  //   borderColor: 'rgba(179,27,52,0.35)',
+  //   paddingVertical: 13,
+  //   paddingHorizontal: 34,
+  //   borderRadius: 14,
+  //   alignItems: 'center',
+  //   alignSelf: 'center',
     marginTop: 26,
+  backgroundColor: 'rgba(255,255,255,0.10)',
+    paddingHorizontal: 32,
+    paddingVertical: 14,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.18)',
   },
+
   leaveText: {
-    color: '#B31B34',
+    color: '#F19191',
     fontWeight: '700',
-    fontSize: 15,
+    fontSize: 18,
   },
 
   overlay: {

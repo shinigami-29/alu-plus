@@ -47,7 +47,7 @@ const JoinRoomScreen = ({ navigation }: Props) => {
           <Text style={s.title}>Join a Room</Text>
           <Text style={s.subtitle}>
             Enter the 6-digit code your friend shared with you
-          </Text>
+          </Text>     
 
           <TextInput
             style={s.input}

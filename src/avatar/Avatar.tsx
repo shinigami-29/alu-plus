@@ -1,3 +1,4 @@
+// photos of avatars
 export const AVATAR_LIST = [
   {id: 'ava1', source: require('../images/avatar/ava1.png')},
   {id: 'ava2', source: require('../images/avatar/ava2.png')},

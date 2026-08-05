@@ -1,3 +1,4 @@
+// for whole scrren 
 import {
   View,
   ImageBackground,

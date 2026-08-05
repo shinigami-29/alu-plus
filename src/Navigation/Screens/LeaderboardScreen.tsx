@@ -16,9 +16,7 @@ import Avatar from '../../components/Avatar/Avatar';
 import { COLORS } from '../../theme/colors';
 type Props = { navigation: NativeStackNavigationProp<any> };
 
-// Aba wins haru weekly reset hunxa (Monday–Sunday). Yo function le "resets in Xd"
-// jasto label ko lagi baaki din ganana garcha — display matra ho, actual reset
-// chai GameLogic.tsx ko weekKey system le automatically garcha.
+// it resset leaderboard winner every 1 week , but real reset work in gamelogic.tsx
 const getDaysUntilReset = (): number => {
   const now = new Date();
   const dayNr = (now.getDay() + 6) % 7; // Monday = 0 ... Sunday = 6

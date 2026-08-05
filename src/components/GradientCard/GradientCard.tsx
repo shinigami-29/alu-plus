@@ -1,3 +1,4 @@
+// for btn in modescreen down btn
 import React, { useRef, useState } from 'react';
 import { LayoutChangeEvent, StyleProp, StyleSheet, View, ViewStyle } from 'react-native';
 import Svg, { Defs, LinearGradient, Stop, Rect } from 'react-native-svg';
@@ -5,7 +6,7 @@ import Svg, { Defs, LinearGradient, Stop, Rect } from 'react-native-svg';
 let uid = 0;
 
 type Props = {
-  colors: [string, string];
+  colors: [string, string]; 
   borderRadius?: number;
   style?: StyleProp<ViewStyle>;
   children?: React.ReactNode;

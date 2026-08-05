@@ -17,7 +17,7 @@ import Avatar from '../../components/Avatar/Avatar';
 
 type Props = { navigation: NativeStackNavigationProp<any> };
 
-// sabai possible winning combos (row, column, diagonal)
+// all possible winning combos (row, column, diagonal)
 const WIN_LINES = [
   [0, 1, 2],
   [3, 4, 5],
@@ -29,7 +29,6 @@ const WIN_LINES = [
   [2, 4, 6],
 ];
 
-// board bata kun 3 ta cell le win banayo tyo pattaunu (indices matra)
 function findWinningLine(board: any[]): number[] | null {
   for (const line of WIN_LINES) {
     const [a, b, c] = line;
@@ -156,8 +155,6 @@ const MultiplayerGameScreen = ({ navigation }: Props) => {
       setResultSnapshot({ winner: null, isDraw: true });
       setPopupVisible(true);
     } else {
-      // NOTE: resultSnapshot yaha clear gardaina — Modal fade-out huda pani
-      // purano (sahi) winner/draw text nai dekhincha, naya galat text hoina
       setPopupVisible(false);
       lineAnim.setValue(0);
     }
@@ -184,7 +181,7 @@ const MultiplayerGameScreen = ({ navigation }: Props) => {
       : `${opponentName || 'Opponent'} wins!`
     : '';
 
-  // NEW: "Leave" button ley ab seedhai goBack nagarera confirm popup kholcha
+  // when leave btn is press it does not go back direct , popup show to confirm for leave
   const handleLeave = () => {
     setLeaveConfirmVisible(true);
   };
@@ -720,17 +717,23 @@ const s = StyleSheet.create({
 
   leaveBtn: {
     marginTop: 22,
-    backgroundColor: 'rgba(255,251,244,0.9)',
+    // backgroundColor: 'rgba(255,251,244,0.9)',
+    // borderWidth: 1,
+    // borderColor: 'rgba(179,27,52,0.35)',
+    // paddingHorizontal: 34,
+    // paddingVertical: 13,
+    // borderRadius: 14,
+    backgroundColor: 'rgba(255, 255, 255, 0.16)',
+    paddingHorizontal: 32,
+    paddingVertical: 14,
+    borderRadius: 20,
     borderWidth: 1,
-    borderColor: 'rgba(179,27,52,0.35)',
-    paddingHorizontal: 34,
-    paddingVertical: 13,
-    borderRadius: 14,
+    borderColor: 'rgba(255,255,255,0.18)',
   },
   leaveText: {
-    color: '#B31B34',
+    color: '#F19191',
     fontWeight: '700',
-    fontSize: 15,
+    fontSize: 18,
   },
 
   // Modal
