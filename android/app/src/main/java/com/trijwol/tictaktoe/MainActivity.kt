@@ -1,4 +1,4 @@
-package com.trijwol.tictaktoe
+package com.outlines.aluplus
 
 import android.os.Bundle
 import com.swmansion.rnscreens.fragment.restoration.RNScreensFragmentFactory

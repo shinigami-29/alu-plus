@@ -16,12 +16,14 @@ import { AVATAR_LIST } from '../avatar/Avatar';
 import { Pencil, Check, X, LogOut } from 'lucide-react-native';
 import Layout from '../components/AppLayout/Layout';
 import Avatar from '../components/Avatar/Avatar';
+import { useGameLogic } from '../Navigation/GameLogicContext'; 
 
 type Props = { navigation: NativeStackNavigationProp<any> };
 
 const ProfileScreen = ({ navigation }: Props) => {
   const { user, userProfile, updateProfile, logout, refreshProfile } =
     useAuth();
+const { myName, setMyName, renameUsernameEverywhere } = useGameLogic();
 
   const displayName =
     userProfile?.name ||
@@ -70,25 +72,53 @@ const ProfileScreen = ({ navigation }: Props) => {
       .finally(() => setLoading(false));
   };
 
-  const handleSaveUsername = () => {
-    const trimmed = newUsername.trim();
-    if (!trimmed) {
-      showMessage('error', 'Error', 'Username is empty!');
-      return;
-    }
-    if (/\s/.test(trimmed)) {
-      showMessage('error', 'Error', 'No space in Username!');
-      return;
-    }
-    setLoading(true);
-    updateProfile({ username: trimmed })
-      .then(() => {
-        setEditingUsername(false);
-        showMessage('success', 'Success', 'Username is update!');
-      })
-      .catch(err => showMessage('error', 'Error', err.message))
-      .finally(() => setLoading(false));
-  };
+  // const handleSaveUsername = () => {
+  //   const trimmed = newUsername.trim();
+  //   if (!trimmed) {
+  //     showMessage('error', 'Error', 'Username is empty!');
+  //     return;
+  //   }
+  //   if (/\s/.test(trimmed)) {
+  //     showMessage('error', 'Error', 'No space in Username!');
+  //     return;
+  //   }
+  //   setLoading(true);
+  //   updateProfile({ username: trimmed })
+  //     .then(() => {
+  //       setEditingUsername(false);
+  //       showMessage('success', 'Success', 'Username is update!');
+  //     })
+  //     .catch(err => showMessage('error', 'Error', err.message))
+  //     .finally(() => setLoading(false));
+  // };
+const handleSaveUsername = () => {
+  const trimmed = newUsername.trim();
+  if (!trimmed) {
+    showMessage('error', 'Error', 'Username is empty!');
+    return;
+  }
+  if (/\s/.test(trimmed)) {
+    showMessage('error', 'Error', 'No space in Username!');
+    return;
+  }
+
+const oldName = myName || userProfile?.username || '';
+
+  setLoading(true);
+  updateProfile({ username: trimmed })
+    .then(() => {
+      // 👇 RTDB (recentOpponents, gameFriends, presence, leaderboard) migrate garne
+      if (oldName && oldName !== trimmed) {
+        renameUsernameEverywhere(oldName, trimmed);
+      }
+      setMyName(trimmed);
+
+      setEditingUsername(false);
+      showMessage('success', 'Success', 'Username is update!');
+    })
+    .catch(err => showMessage('error', 'Error', err.message))
+    .finally(() => setLoading(false));
+};
 
   const handleLogout = () => {
     setLogoutModalVisible(true);

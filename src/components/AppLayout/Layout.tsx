@@ -109,7 +109,7 @@ const Layout = ({ children, withScroll = true, header }: Props) => {
           <Rect x="0" y="0" width="100%" height="100%" fill="url(#headerBoost)" />
         </Svg>
         <StatusBar
-          barStyle="light-content"
+          barStyle="light-content" 
           backgroundColor="transparent"
           translucent
         />

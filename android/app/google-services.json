@@ -8,12 +8,36 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:603350820884:android:b72cab16c642618686df01",
+        "mobilesdk_app_id": "1:603350820884:android:36c6d1155a82164786df01",
         "android_client_info": {
-          "package_name": "com.myapp"
+          "package_name": "com.outlines.aluplus"
         }
       },
       "oauth_client": [
+        {
+          "client_id": "603350820884-8j97oskm0hb14s00d4kk8js04h4ugndu.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.outlines.aluplus",
+            "certificate_hash": "dd67914592e8dbe9005ab96413a8ec0738e42223"
+          }
+        },
+        {
+          "client_id": "603350820884-g3b6jgc1vbf2jdd3vg7ov5bgke15afbv.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.outlines.aluplus",
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+          }
+        },
+        {
+          "client_id": "603350820884-k3qelrduejlmbr62vgd2imbo0g0ctvfa.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.outlines.aluplus",
+            "certificate_hash": "8e2907d8abd9aef198a749e4e6f6fe8660bbf226"
+          }
+        },
         {
           "client_id": "603350820884-4urjapll9a70ofb55kdmlnhraldoscb7.apps.googleusercontent.com",
           "client_type": 3
@@ -30,6 +54,13 @@
             {
               "client_id": "603350820884-4urjapll9a70ofb55kdmlnhraldoscb7.apps.googleusercontent.com",
               "client_type": 3
+            },
+            {
+              "client_id": "603350820884-6gr7jijo1c3ep4uarmnkbp45s9h3f38r.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.outlines.aluplus"
+              }
             }
           ]
         }
@@ -67,6 +98,13 @@
             {
               "client_id": "603350820884-4urjapll9a70ofb55kdmlnhraldoscb7.apps.googleusercontent.com",
               "client_type": 3
+            },
+            {
+              "client_id": "603350820884-6gr7jijo1c3ep4uarmnkbp45s9h3f38r.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.outlines.aluplus"
+              }
             }
           ]
         }

@@ -21,7 +21,7 @@ const getInitials = (name?: string | null) => {
   return (words[0][0] + words[1][0]).toUpperCase();
 };
 
-const Avatar = ({
+const Avatar = React.memo(({
   name,
   photoURL,
   avatarId,
@@ -43,11 +43,14 @@ const Avatar = ({
       justifyContent: 'center',
       overflow: 'hidden',
       backgroundColor,
-    },
-    ring && {
       borderWidth: 2,
-      borderColor: ringColor,
+    borderColor: ring ? ringColor : 'transparent',
+      
     },
+    // ring && {
+    //   borderWidth: 2,
+    //   borderColor: ringColor,
+    // },
     style,
   ];
 
@@ -66,7 +69,7 @@ const Avatar = ({
       </Text>
     </View>
   );
-};
+});
 
 const styles = StyleSheet.create({
   image: {

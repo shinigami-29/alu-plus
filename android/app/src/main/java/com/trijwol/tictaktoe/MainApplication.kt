@@ -1,4 +1,4 @@
-package com.trijwol.tictaktoe
+package com.outlines.aluplus
 
 import android.app.Application
 import com.facebook.react.PackageList

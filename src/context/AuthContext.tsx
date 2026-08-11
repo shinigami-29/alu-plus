@@ -73,7 +73,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<FirebaseAuthTypes.User | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const profileUnsubscribeRef = React.useRef<(() => void) | null>(null);
 
+  
   useEffect(() => {
     const unsubscribe = auth().onAuthStateChanged(firebaseUser => {
       setUser(firebaseUser);
@@ -87,22 +89,55 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return unsubscribe;
   }, []);
 
-  const fetchUserProfile = (uid: string) => {
-    firestore()
-      .collection('users')
-      .doc(uid)
-      .get()
-      .then(doc => {
+  useEffect(() => {
+  return () => {
+    if (profileUnsubscribeRef.current) {
+      profileUnsubscribeRef.current();
+    }
+  };
+}, []);
+
+  
+  // const fetchUserProfile = (uid: string) => {
+  //   firestore()
+  //     .collection('users')
+  //     .doc(uid)
+  //     .get()
+  //     .then(doc => {
+  //       if (doc.exists()) {
+  //         setUserProfile(doc.data() as UserProfile);
+  //       }
+  //       setLoading(false);
+  //     })
+  //      .catch(err => {
+  //     console.log('fetchUserProfile error:', err);
+  //     setLoading(false); // error aaye pani loading false garne, natra forever stuck
+  //   });
+  // };
+const fetchUserProfile = (uid: string) => {
+  if (profileUnsubscribeRef.current) {
+    profileUnsubscribeRef.current();
+    profileUnsubscribeRef.current = null;
+  }
+
+  const unsubscribe = firestore()
+    .collection('users')
+    .doc(uid)
+    .onSnapshot(
+      doc => {
         if (doc.exists()) {
           setUserProfile(doc.data() as UserProfile);
         }
         setLoading(false);
-      })
-       .catch(err => {
-      console.log('fetchUserProfile error:', err);
-      setLoading(false); // error aaye pani loading false garne, natra forever stuck
-    });
-  };
+      },
+      err => {
+        console.log('fetchUserProfile error:', err);
+        setLoading(false);
+      },
+    );
+
+  profileUnsubscribeRef.current = unsubscribe;
+};
 
   const registerWithEmail = (
     email: string,

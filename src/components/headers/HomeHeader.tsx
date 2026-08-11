@@ -60,6 +60,7 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingBottom: 18,
+    
   },
   brandRow: {
     flex: 1,

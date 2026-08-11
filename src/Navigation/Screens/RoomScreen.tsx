@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useGameLogic } from '../GameLogicContext';
+import { useAuth } from '../../context/AuthContext';
 import Clipboard from '@react-native-clipboard/clipboard';
 import { Copy, Users, DoorOpen, Crown } from 'lucide-react-native';
 import Layout from '../../components/AppLayout/Layout';
@@ -22,97 +23,109 @@ type Props = {
 const RoomScreen = ({ navigation }: Props) => {
   const {
     myName,
-    myPhoto,
     roomCode,
     opponentName,
     opponentPhoto,
+    opponentAvatarId,
     leaveRoom,
   } = useGameLogic();
+  const { userProfile, user } = useAuth();
+
+  // GameLogic() le myPhoto/myAvatarId return gardaina (tyo chai input
+  // parameter matra ho) — so aafno photo/avatarId AuthContext bata
+  // seedhai tannuparcha, MultiplayerScreen.tsx jasto
+  const myPhoto = userProfile?.photoURL || user?.photoURL || null;
+  const myAvatarId = userProfile?.avatarId || null;
 
   const guestJoined = !!opponentName;
 
-   useEffect(() => {
-        const unsubscribe = navigation.addListener('beforeRemove', (e: any) => {
-          const actionType = e.data?.action?.type;
-          console.log('beforeRemove fired, actionType:', actionType);
-          if (actionType === 'GO_BACK' || actionType === 'POP') {
-            console.log('Calling leaveRoom()...');
-            leaveRoom();
-          }
-        });
-        return unsubscribe;
-      }, [navigation, leaveRoom]);
-      
-      const handleLeave = () => {
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('beforeRemove', (e: any) => {
+      const actionType = e.data?.action?.type;
+      console.log('beforeRemove fired, actionType:', actionType);
+      if (actionType === 'GO_BACK' || actionType === 'POP') {
+        console.log('Calling leaveRoom()...');
+        leaveRoom();
+      }
+    });
+    return unsubscribe;
+  }, [navigation, leaveRoom]);
+
+  const handleLeave = () => {
     leaveRoom();
     navigation.navigate('Multiplayer' as never);
   };
-  
 
   const handleCopyCode = () => {
     Clipboard.setString(roomCode);
     Alert.alert('Copied', 'Room code copied to clipboard');
   };
 
-
   return (
     <Layout>
       <View style={s.container}>
         <View style={s.panel}>
-        <View style={s.header}>
-          <Text style={s.headerTitle}>Game Room</Text>
-          <TouchableOpacity style={s.leaveBtn} onPress={handleLeave}>
-            <DoorOpen size={17} color="#f2c9d1" />
+          <View style={s.header}>
+            <Text style={s.headerTitle}>Game Room</Text>
+            <TouchableOpacity style={s.leaveBtn} onPress={handleLeave}>
+              <DoorOpen size={17} color="#f2c9d1" />
+            </TouchableOpacity>
+          </View>
+
+          {/* Room code row */}
+          <View style={s.codeRow}>
+            <View>
+              <Text style={s.codeLabel}>ROOM CODE</Text>
+              <Text style={s.codeText}>{roomCode}</Text>
+            </View>
+            <TouchableOpacity style={s.copyBtn} onPress={handleCopyCode}>
+              <Copy size={15} color="#eef0fa" />
+              <Text style={s.copyBtnText}>Copy</Text>
+            </TouchableOpacity>
+          </View>
+          <Text style={s.codeHint}>Share this code with a friend to join</Text>
+
+          <View style={s.divider} />
+
+          {/* Players */}
+          <View style={s.playersWrap}>
+            <PlayerSlot
+              name={myName}
+              photo={myPhoto}
+              avatarId={myAvatarId}
+              isHost
+              filled
+            />
+            <View style={s.vsCircle}>
+              <Text style={s.vsText}>VS</Text>
+            </View>
+            <PlayerSlot
+              name={opponentName}
+              photo={opponentPhoto}
+              avatarId={opponentAvatarId}
+              isHost={false}
+              filled={guestJoined}
+            />
+          </View>
+
+          <View style={s.statusRow}>
+            {!guestJoined ? (
+              <>
+                <ActivityIndicator size="small" color="#c7cbe0" />
+                <Text style={s.waitingText}>Waiting for opponent to join...</Text>
+              </>
+            ) : (
+              <Text style={s.guestWaitingText}>
+                Opponent joined — starting game...
+              </Text>
+            )}
+          </View>
+
+          <TouchableOpacity style={s.leaveRoomBtn} onPress={handleLeave}>
+            <DoorOpen size={15} color="#f9d9e0" />
+            <Text style={s.leaveRoomBtnText}>Leave Room</Text>
           </TouchableOpacity>
         </View>
-
-        {/* Room code row */}
-        <View style={s.codeRow}>
-          <View>
-            <Text style={s.codeLabel}>ROOM CODE</Text>
-            <Text style={s.codeText}>{roomCode}</Text>
-          </View>
-          <TouchableOpacity style={s.copyBtn} onPress={handleCopyCode}>
-            <Copy size={15} color="#eef0fa" />
-            <Text style={s.copyBtnText}>Copy</Text>
-          </TouchableOpacity>
-        </View>
-        <Text style={s.codeHint}>Share this code with a friend to join</Text>
-
-        <View style={s.divider} />
-
-        {/* Players */}
-        <View style={s.playersWrap}>
-          <PlayerSlot name={myName} photo={myPhoto} isHost filled />
-          <View style={s.vsCircle}>
-            <Text style={s.vsText}>VS</Text>
-          </View>
-          <PlayerSlot
-            name={opponentName}
-            photo={opponentPhoto}
-            isHost={false}
-            filled={guestJoined}
-          />
-        </View>
-
-        <View style={s.statusRow}>
-          {!guestJoined ? (
-            <>
-              <ActivityIndicator size="small" color="#c7cbe0" />
-              <Text style={s.waitingText}>Waiting for opponent to join...</Text>
-            </>
-          ) : (
-            <Text style={s.guestWaitingText}>
-              Opponent joined — starting game...
-            </Text>
-          )}
-        </View>
-
-        <TouchableOpacity style={s.leaveRoomBtn} onPress={handleLeave}>
-          <DoorOpen size={15} color="#f9d9e0" />
-          <Text style={s.leaveRoomBtnText}>Leave Room</Text>
-        </TouchableOpacity>
-      </View>
       </View>
     </Layout>
   );
@@ -121,11 +134,13 @@ const RoomScreen = ({ navigation }: Props) => {
 const PlayerSlot = ({
   name,
   photo,
+  avatarId,
   isHost,
   filled,
 }: {
   name?: string | null;
   photo?: string | null;
+  avatarId?: string | null;
   isHost: boolean;
   filled: boolean;
 }) => (
@@ -137,7 +152,13 @@ const PlayerSlot = ({
       ]}
     >
       {filled ? (
-        <Avatar name={name} photoURL={photo} size={56} backgroundColor="#5c6a9e" />
+        <Avatar
+          name={name}
+          photoURL={photo}
+          avatarId={avatarId}
+          size={56}
+          backgroundColor="#5c6a9e"
+        />
       ) : (
         <Users size={20} color="#c7cbe0" />
       )}

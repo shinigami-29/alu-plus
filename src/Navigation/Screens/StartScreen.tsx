@@ -51,7 +51,8 @@ const StartScreen = ({navigation}: Props) => {
 
    return (
     <Layout>
-      <View style={s.container}>
+    <View style={s.container}>
+      <View style={s.contentWrap}>
         <View style={s.titleWrap}>
           <Animated.Text
             style={[
@@ -71,18 +72,19 @@ const StartScreen = ({navigation}: Props) => {
           style={[s.tikImage, {opacity: titleOpacity}]}
           resizeMode="contain"
         />
-
-        {/* Loading bar */}
-        <View style={s.loadingWrap}>
-          <View style={s.loadingContainer}>
-            <Animated.View style={[s.loadingBar, {width: loadingWidth}]} />
-          </View>
-          <Animated.Text style={[s.loadingLabel, {opacity: titleOpacity}]}>
-            Loading...
-          </Animated.Text>
-        </View>
       </View>
-    </Layout>
+
+      {/* Loading bar */}
+      <View style={s.loadingWrap}>
+        <View style={s.loadingContainer}>
+          <Animated.View style={[s.loadingBar, {width: loadingWidth}]} />
+        </View>
+        <Animated.Text style={[s.loadingLabel, {opacity: titleOpacity}]}>
+          Loading...
+        </Animated.Text>
+      </View>
+    </View>
+  </Layout>
   );
 };
 
@@ -91,15 +93,18 @@ export default StartScreen;
 const s = StyleSheet.create({
   container: {
     flex: 1,
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  contentWrap: {
+    flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
   titleWrap: {
-    position: 'absolute',
-    top: 140,
-    left: 0,
-    right: 0,
     alignItems: 'center',
+    marginBottom: 24,
   },
   badge: {
     width: 84,
@@ -139,19 +144,13 @@ const s = StyleSheet.create({
     textShadowRadius: 4,
   },
   tikImage: {
-    position: 'absolute',
-    top: 220,
-    left: 0,
-    right: 0,
-    width: 350,
-    height: 350,
-    alignSelf: 'center',
+    width: width * 0.85,
+    height: width * 0.85,
+    maxWidth: 350,
+    maxHeight: 350,
   },
   loadingWrap: {
-    position: 'absolute',
-    bottom: 110,
-    left: 0,
-    right: 0,
+    width: '100%',
     alignItems: 'center',
   },
   loadingContainer: {
