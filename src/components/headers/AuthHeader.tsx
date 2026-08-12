@@ -14,7 +14,7 @@ const AuthHeader = ({ appName, title, subtitle }: Props) => {
   return (
     <View style={s.container}>
       <Logo size={56} style={s.logo} />
-      <Text style={s.appName}>{appName}</Text>
+      <Text style={s.appName}>{appName}</Text>  
       <Text style={s.title}>{title}</Text>
       <Text style={s.subtitle}>{subtitle}</Text>
     </View>

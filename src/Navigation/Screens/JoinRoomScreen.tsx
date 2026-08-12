@@ -68,7 +68,6 @@ const JoinRoomScreen = ({ navigation }: Props) => {
             disabled={!joinCode}
             onPress={() => {
               joinRoom();
-              navigation.navigate('MultiplayerGame');
             }}
           >
             <Text style={s.btnText}>Join Room</Text>

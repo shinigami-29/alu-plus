@@ -29,7 +29,6 @@ const RandomMatchScreen = ({ navigation }: Props) => {
 
   const found = randomMatchStatus === 'found';
 
-  // Profile ko "username" field deखाउने — "name" field hoina
   const displayName =
     userProfile?.username ||
     user?.displayName ||
@@ -107,9 +106,9 @@ const RandomMatchScreen = ({ navigation }: Props) => {
       pulseAnim.stop();
     };
   }, []);
-
-  // Opponent bhetiyo bhane: searching animation haru rokera,
-  // "found" box lai bounce-in garaune
+  
+ // When an opponent is found: stop the searching animations and
+  // bounce-in the "found" box
   useEffect(() => {
     if (found) {
       dotLoops.current.forEach(loop => loop.stop());

@@ -42,11 +42,12 @@ const RoomListScreen = ({ navigation }: Props) => {
     setTimeout(() => setRefreshing(false), 400);
   };
 
+
+  // GameLogicContext's effect auto-navigates to Waiting/MultiplayerGame
+    // once the join updates logic.screen — no manual navigate needed here.
   const handleJoin = (room: RoomItem) => {
     if (room.status !== 'waiting') return;
     joinRoomWithCode(room.roomCode);
-    // GameLogicContext's effect auto-navigates to Waiting/MultiplayerGame
-    // once the join updates logic.screen — no manual navigate needed here.
   };
 
   const renderItem = ({ item }: { item: RoomItem }) => {

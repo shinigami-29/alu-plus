@@ -6,7 +6,8 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
-  Modal, Image
+  Modal,
+  Image,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth } from '../context/AuthContext';
@@ -96,17 +97,10 @@ const LoginScreen = ({ navigation }: Props) => {
   };
 
   const handleFacebookLogin = () => {
-    setFbLoading(true);
-    loginWithFacebook()
-      .then(() => {
-        navigation.replace('Mode');
-      })
-      .catch(err => {
-        if (err.message !== 'User cancelled the login process') {
-          showAlert('Login Failed', err.message ?? 'Something went wrong');
-        }
-      })
-      .finally(() => setFbLoading(false));
+    showAlert(
+      'Coming Soon',
+      'Facebook login is being set up and will be available in a future update. Please use Email, Google, or Guest login for now.',
+    );
   };
 
   return (

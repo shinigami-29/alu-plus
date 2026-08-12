@@ -1,4 +1,4 @@
-//to connect to  firebase 
+//to connect to  firebase
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import auth, { FirebaseAuthTypes } from '@react-native-firebase/auth';
 import firestore from '@react-native-firebase/firestore';
@@ -46,8 +46,8 @@ type AuthContextType = {
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType);
 
-// Common default profile builder — sabai signup method le yehi use garne,
-// taki Firestore ma field haru (draw, rank, aadi) sabai jaga consistent hos
+// Shared default profile builder — used by every sign-up method so that
+// Firestore fields (draw, rank, etc.) stay consistent across all of them
 const buildDefaultProfile = (
   uid: string,
   name: string,
@@ -75,7 +75,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true);
   const profileUnsubscribeRef = React.useRef<(() => void) | null>(null);
 
-  
   useEffect(() => {
     const unsubscribe = auth().onAuthStateChanged(firebaseUser => {
       setUser(firebaseUser);
@@ -90,54 +89,37 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }, []);
 
   useEffect(() => {
-  return () => {
+    return () => {
+      if (profileUnsubscribeRef.current) {
+        profileUnsubscribeRef.current();
+      }
+    };
+  }, []);
+
+  const fetchUserProfile = (uid: string) => {
     if (profileUnsubscribeRef.current) {
       profileUnsubscribeRef.current();
+      profileUnsubscribeRef.current = null;
     }
+
+    const unsubscribe = firestore()
+      .collection('users')
+      .doc(uid)
+      .onSnapshot(
+        doc => {
+          if (doc.exists()) {
+            setUserProfile(doc.data() as UserProfile);
+          }
+          setLoading(false);
+        },
+        err => {
+          console.log('fetchUserProfile error:', err);
+          setLoading(false);
+        },
+      );
+
+    profileUnsubscribeRef.current = unsubscribe;
   };
-}, []);
-
-  
-  // const fetchUserProfile = (uid: string) => {
-  //   firestore()
-  //     .collection('users')
-  //     .doc(uid)
-  //     .get()
-  //     .then(doc => {
-  //       if (doc.exists()) {
-  //         setUserProfile(doc.data() as UserProfile);
-  //       }
-  //       setLoading(false);
-  //     })
-  //      .catch(err => {
-  //     console.log('fetchUserProfile error:', err);
-  //     setLoading(false); // error aaye pani loading false garne, natra forever stuck
-  //   });
-  // };
-const fetchUserProfile = (uid: string) => {
-  if (profileUnsubscribeRef.current) {
-    profileUnsubscribeRef.current();
-    profileUnsubscribeRef.current = null;
-  }
-
-  const unsubscribe = firestore()
-    .collection('users')
-    .doc(uid)
-    .onSnapshot(
-      doc => {
-        if (doc.exists()) {
-          setUserProfile(doc.data() as UserProfile);
-        }
-        setLoading(false);
-      },
-      err => {
-        console.log('fetchUserProfile error:', err);
-        setLoading(false);
-      },
-    );
-
-  profileUnsubscribeRef.current = unsubscribe;
-};
 
   const registerWithEmail = (
     email: string,
@@ -153,13 +135,11 @@ const fetchUserProfile = (uid: string) => {
           .doc(newUser.uid)
           .set(buildDefaultProfile(newUser.uid, name, username, email, null))
           .then(() => {
-            // Verification email pathaune — yo fail vaye pani registration
-            // process rokdaina, matra background ma try garcha
+            // Send verification email — if this fails, don't block
+            // registration, just retry silently in the background
             return newUser
               .sendEmailVerification()
-              .catch(err =>
-                console.log('sendEmailVerification error:', err),
-              );
+              .catch(err => console.log('sendEmailVerification error:', err));
           });
       });
   };
@@ -190,7 +170,6 @@ const fetchUserProfile = (uid: string) => {
           .get()
           .then(doc => {
             if (!doc.exists()) {
-              // Naya user — pahilo pali account banaune
               return firestore()
                 .collection('users')
                 .doc(googleUser.uid)
@@ -218,44 +197,43 @@ const fetchUserProfile = (uid: string) => {
   };
 
   const loginAsGuest = () => {
-  return auth()
-    .signInAnonymously()
-    .then(({ user: guestUser }) => {
-      return firestore()
-        .collection('users')
-        .doc(guestUser.uid)
-        .get()
-        .then(doc => {
-          if (!doc.exists()) {
-            const newProfile = buildDefaultProfile(
-              guestUser.uid,
-              'Guest',
-              `guest_${guestUser.uid.slice(0, 6)}`,
-              '',
-              null,
-            );
-            return firestore()
-              .collection('users')
-              .doc(guestUser.uid)
-              .set(newProfile)
-              .then(() => {
-                // Yehi missing thiyo — profile create garepachi state pani update garne
-                setUserProfile(newProfile as unknown as UserProfile);
-              });
-          } else {
-            // Doc already exists (existing guest re-login huda) — state update garne
-            setUserProfile(doc.data() as UserProfile);
-          }
-        });
-    });
-};
+    return auth()
+      .signInAnonymously()
+      .then(({ user: guestUser }) => {
+        return firestore()
+          .collection('users')
+          .doc(guestUser.uid)
+          .get()
+          .then(doc => {
+            if (!doc.exists()) {
+              const newProfile = buildDefaultProfile(
+                guestUser.uid,
+                'Guest',
+                `guest_${guestUser.uid.slice(0, 6)}`,
+                '',
+                null,
+              );
+              return firestore()
+                .collection('users')
+                .doc(guestUser.uid)
+                .set(newProfile)
+                .then(() => {
+                  setUserProfile(newProfile as unknown as UserProfile);
+                });
+            } else {
+              setUserProfile(doc.data() as UserProfile);
+            }
+          });
+      });
+  };
 
-  // Facebook Graph API bata seedhai fresh profile (naam + photo) tannu —
-  // kina ki linkWithCredential garda Firebase le existing (Google) user ko
-  // hi displayName/photoURL firtaucha, Facebook ko aafno data haruna
   const fetchFacebookProfile = (
     accessToken: string,
-  ): Promise<{ name: string; email: string | null; photoURL: string | null }> => {
+  ): Promise<{
+    name: string;
+    email: string | null;
+    photoURL: string | null;
+  }> => {
     return fetch(
       `https://graph.facebook.com/me?fields=id,name,email,picture.type(large)&access_token=${accessToken}`,
     )
@@ -270,16 +248,20 @@ const fetchUserProfile = (uid: string) => {
 
   const loginWithFacebook = () => {
     Settings.initializeSDK();
-    let fbProfile: { name: string; email: string | null; photoURL: string | null } = {
+    let fbProfile: {
+      name: string;
+      email: string | null;
+      photoURL: string | null;
+    } = {
       name: '',
       email: null,
       photoURL: null,
     };
 
-    // Cached FB session clear garne — natra Facebook le aafno native
-    // "You previously logged in..." picker dekhaucha (naya user ho ki
-    // pura ho vanne kura hamro app le determine garna paudaina, kina ki
-    // yo Facebook app/browser ko device-level session ho)
+    // Clear cached FB session — otherwise Facebook shows its own native
+    // "You previously logged in..." account picker. Our app can't determine
+    // whether this is a new user or a returning one, because this is a
+    // device-level session that belongs to the Facebook app/browser, not our app.
     LoginManager.logOut();
 
     return LoginManager.logInWithPermissions(['public_profile', 'email'])
@@ -297,22 +279,22 @@ const fetchUserProfile = (uid: string) => {
           data.accessToken,
         );
 
-        // Facebook ko aafno naam/photo/email yehi fetch garne, pachi use garna
+        // Fetch Facebook's own name/photo/email here, to use later
         return fetchFacebookProfile(data.accessToken).then(profile => {
           fbProfile = profile;
 
-          // Pahile nai kohi arko provider (Google) bata signed in cha bhane,
-          // seedhai tyahi current user ma Facebook credential link garne
+          // If already signed in with another provider (Google), link
+          // the Facebook credential directly to that current user
           const currentUser = auth().currentUser;
           const signInPromise = currentUser
             ? currentUser.linkWithCredential(facebookCredential)
             : auth().signInWithCredential(facebookCredential);
 
-          // Firebase Auth ko currentUser.photoURL/displayName pani update
-          // garne — natra linkWithCredential/signInWithCredential le FB ko
-          // naam/photo auth().currentUser ma populate gardaina, ra
-          // GameLogic.tsx ma sabai jaga (leaderboard, room, invitation,
-          // random match) auth().currentUser?.photoURL nai use huncha
+          // Also update Firebase Auth's currentUser.photoURL/displayName —
+          // otherwise linkWithCredential/signInWithCredential won't populate
+          // FB's name/photo onto auth().currentUser, and GameLogic.tsx relies
+          // on auth().currentUser?.photoURL everywhere (leaderboard, room,
+          // invitation, random match)
           return signInPromise.then(async result => {
             const fbAuthUser = result.user;
 
@@ -364,17 +346,18 @@ const fetchUserProfile = (uid: string) => {
                   buildDefaultProfile(
                     fbUser.uid,
                     name,
-                    email ? email.split('@')[0] : `fb_${fbUser.uid.slice(0, 6)}`,
+                    email
+                      ? email.split('@')[0]
+                      : `fb_${fbUser.uid.slice(0, 6)}`,
                     email,
                     photoURL,
                   ),
                 );
             }
 
-            // Existing user ho bhane, avatarId manually set gareko
-            // nahos bhane matra Facebook ko photo lagaune — naam
-            // over-write nagarne (user le aafno app ma naam badaleko
-            // huna sakcha)
+            // Existing user: only apply Facebook's photo if they haven't
+            // manually set an avatarId. Don't overwrite the name — the
+            // user may have changed it inside the app already
             const existing = doc.data();
             if (!existing?.avatarId && photoURL) {
               return firestore()

@@ -6,14 +6,6 @@ import database, {
 import auth from '@react-native-firebase/auth';
 import firestore from '@react-native-firebase/firestore';
 
-const listenedCodeRef: { current: string | null } = { current: null };
-const recordedResultKeyRef: { current: string | null } = { current: null };
-const activeSessionKeyRef: { current: string | null } = { current: null };
-const sessionStatsRef: {
-  current: { wins: number; losses: number; draws: number };
-} = { current: { wins: 0, losses: 0, draws: 0 } };
-const isLeavingRef: { current: boolean } = { current: false }; 
-
 const GameLogic = (myAvatarId?: string | null, myPhoto?: string | null) => {
   const [board, setBoard] = useState<BoxCell[]>(Array(9).fill(null));
   const [currentPlayer, setCurrentPlayer] = useState<Player>('X');
@@ -33,7 +25,6 @@ const GameLogic = (myAvatarId?: string | null, myPhoto?: string | null) => {
       avatarId: string | null;
     }[]
   >([]);
-  // const [recentOpponents, setRecentOpponents] = useState<string[]>([]);
   const [recentOpponents, setRecentOpponents] = useState<
     { name: string; photo: string | null; avatarId: string | null }[]
   >([]);
@@ -48,11 +39,20 @@ const GameLogic = (myAvatarId?: string | null, myPhoto?: string | null) => {
 
   // match historu reset
   const MATCH_HISTORY_THRESHOLD = 20;
-const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
-const TWO_WEEKS_MS = 14 * 24 * 60 * 60 * 1000;
+  const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+  const TWO_WEEKS_MS = 14 * 24 * 60 * 60 * 1000;
 
+  const listenedCodeRef = useRef<string | null>(null);
+  const recordedResultKeyRef = useRef<string | null>(null);
+  const activeSessionKeyRef = useRef<string | null>(null);
+  const sessionStatsRef = useRef<{
+    wins: number;
+    losses: number;
+    draws: number;
+  }>({ wins: 0, losses: 0, draws: 0 });
+  const isLeavingRef = useRef(false);
 
-  // ROOM LIST (LOBBY) — waiting + playing both status haru
+  // ROOM LIST (LOBBY) — waiting + playing both status
   const [allRooms, setAllRooms] = useState<
     {
       roomCode: string;
@@ -85,9 +85,8 @@ const TWO_WEEKS_MS = 14 * 24 * 60 * 60 * 1000;
     }[]
   >([]);
 
-  // myRole — Firebase listener (listenToRoom) jasto stale-closure hune
-  // ठाउँमा sadhai latest value padhna paos bhanera myRoleRef pani राखेको।
-  // when setMyRole() is call both state and ref both will be  sync.
+  // myRoleRef mirrors myRole so Firebase listeners always read the latest
+// value, even in a stale closure. setMyRole() keeps both in sync.
   const [myRole, setMyRoleState] = useState<'X' | 'O' | null>(null);
   const myRoleRef = useRef<'X' | 'O' | null>(null);
   const setMyRole = (role: 'X' | 'O' | null) => {
@@ -95,12 +94,10 @@ const TWO_WEEKS_MS = 14 * 24 * 60 * 60 * 1000;
     setMyRoleState(role);
   };
 
-  // const isLeavingRef: { current: boolean } = { current: false };
-  const processingMoveRef: { current: boolean } = { current: false }; 
+  const processingMoveRef = useRef(false);
 
   const [opponentName, setOpponentName] = useState('');
   const [opponentPhoto, setOpponentPhoto] = useState<string | null>(null);
-  // opponent ko avatarId pani track garne — room data ra invitation/random match dubai bata aauna sakcha
   const [opponentAvatarId, setOpponentAvatarId] = useState<string | null>(null);
   const [isMyTurn, setIsMyTurn] = useState(false);
   const [gameStarted, setGameStarted] = useState(false);
@@ -115,6 +112,15 @@ const TWO_WEEKS_MS = 14 * 24 * 60 * 60 * 1000;
     Record<string, FirebaseDatabaseTypes.Reference>
   >({});
 
+  const invitationsListenerRef = useRef<FirebaseDatabaseTypes.Reference | null>(
+    null,
+  );
+  const friendReqListenerRef = useRef<FirebaseDatabaseTypes.Reference | null>(
+    null,
+  );
+  const sentInvListenerRef = useRef<FirebaseDatabaseTypes.Reference | null>(
+    null,
+  );
   // MATCH HISTORY (session-based)
   const [matchHistory, setMatchHistory] = useState<
     {
@@ -136,9 +142,13 @@ const TWO_WEEKS_MS = 14 * 24 * 60 * 60 * 1000;
 
   const roomRef = useRef<FirebaseDatabaseTypes.Reference | null>(null);
 
-   const hostUidRef = useRef<string | null>(null);
+  const hostUidRef = useRef<string | null>(null);
   const guestUidRef = useRef<string | null>(null);
-  const currentSessionRecordRef: { current: FirebaseDatabaseTypes.Reference | null } = { current: null };
+
+  // render, so session records couldn't be updated — each move created a
+  // new matchHistory record, causing duplicates)
+  const currentSessionRecordRef =
+    useRef<FirebaseDatabaseTypes.Reference | null>(null);
 
   const lastLocalFirstRef = useRef<Player>('X');
   // USERNAME SEARCH state
@@ -237,44 +247,6 @@ const TWO_WEEKS_MS = 14 * 24 * 60 * 60 * 1000;
         }
 
         roomRef.current = ref;
-
-        // ref
-        //   .set({
-        //     roomName: roomName || `${myName}'s Room`,
-        //     host: myName,
-        //     hostUid: auth().currentUser?.uid ?? null,
-        //     // hostPhoto: auth().currentUser?.photoURL ?? null,
-        //     hostPhoto: myPhoto ?? null,
-        //     hostAvatarId: myAvatarId ?? null,
-        //     guest: null,
-        //     guestUid: null,
-        //     guestPhoto: null,
-        //     guestAvatarId: null,
-        //     board: Array(9).fill(null),
-        //     currentTurn: 'X',
-        //     lastFirst: 'X',
-        //     winner: null,
-        //     isDraw: false,
-        //     status: 'waiting',
-        //   })
-        //   .then(() => {
-        //     // Auto-remove the room if host disconnects (app close, crash, or
-        //     // network loss) — otherwise it stays stuck in "waiting"/"playing"
-        //     // state and shows up as a zombie room in RoomListScreen even after
-        //     // refresh, since the data never gets cleaned up.
-        //     ref.onDisconnect().remove();
-        //     ref.onDisconnect().remove();
-
-        //     setRoomCode(code);
-        //     setMyRole('X');
-        //     setIsMyTurn(true);
-        //     setOpponentAvatarId(null);
-        //     startNewSession(code);
-
-        //     listenToRoom(code);
-
-        //     setScreen('waiting');
-        //   });
         ref
           .set({
             roomName: roomName || `${myName}'s Room`,
@@ -294,11 +266,8 @@ const TWO_WEEKS_MS = 14 * 24 * 60 * 60 * 1000;
             status: 'waiting',
           })
           .then(() => {
-            // Host disconnect huda (app close/crash/net loss) room
-            // automatically hataune — natra "waiting"/"playing" state ma
-            // zombie room basirahancha ra RoomListScreen ma purano room
-            // dekhiraincha (refresh garda pani hatdaina, kina ki database
-            // ma data nai stuck cha)
+            // Auto-remove the room if the host disconnects — otherwise it stays
+// stuck as a zombie room in RoomListScreen.
             ref.onDisconnect().remove();
 
             setRoomCode(code);
@@ -355,22 +324,22 @@ const TWO_WEEKS_MS = 14 * 24 * 60 * 60 * 1000;
         .then(() => {
           roomRef.current = ref;
 
-          // // Guest side pani disconnect huda room hataune — natra
-          // // guest crash/net-loss huda room "playing" ma stuck rahancha
-          // ref.onDisconnect().remove();
           if (isHost) {
-            // Host rejoin bhako ho — host disconnect huda room nai
-            // hataune (jasto generateRoomCode ma cha)
             ref.onDisconnect().remove();
           } else {
-            // Guest disconnect huda pura room hataaunu hudaina — host
-            // aile pani active hunsakcha. Guest field matra clear garne
             ref.onDisconnect().update({
               guest: null,
               guestUid: null,
               guestPhoto: null,
               guestAvatarId: null,
               status: 'waiting',
+              board: Array(9).fill(null),
+              currentTurn: 'X',
+              lastFirst: 'X',
+              winner: null,
+              isDraw: false,
+              rematchX: false,
+              rematchO: false,
             });
           }
 
@@ -392,7 +361,6 @@ const TWO_WEEKS_MS = 14 * 24 * 60 * 60 * 1000;
           setScreen('multiplayerGame');
         });
     });
-    // .catch(err => console.log(err));
   };
 
   // JOIN ROOM BY EXPLICIT CODE
@@ -437,8 +405,24 @@ const TWO_WEEKS_MS = 14 * 24 * 60 * 60 * 1000;
           .then(() => {
             roomRef.current = ref;
 
-            // Guest side pani disconnect huda room hataune
-            ref.onDisconnect().remove();
+            if (isHost) {
+              ref.onDisconnect().remove();
+            } else {
+              ref.onDisconnect().update({
+                guest: null,
+                guestUid: null,
+                guestPhoto: null,
+                guestAvatarId: null,
+                status: 'waiting',
+                board: Array(9).fill(null),
+                currentTurn: 'X',
+                lastFirst: 'X',
+                winner: null,
+                isDraw: false,
+                rematchX: false,
+                rematchO: false,
+              });
+            }
 
             setRoomCode(code);
             setMyRole(isHost ? 'X' : 'O');
@@ -462,69 +446,73 @@ const TWO_WEEKS_MS = 14 * 24 * 60 * 60 * 1000;
   };
 
   // ROOM LIST (LOBBY)
-  // ROOM LIST (LOBBY)
-const fetchAllRooms = () => {
-  database()
-    .ref('/rooms')
-    .once('value')
-    .then(snapshot => {
-      const data = snapshot.val();
-      if (!data) {
-        setAllRooms([]);
-        return;
-      }
+  const fetchAllRooms = () => {
+    database()
+      .ref('/rooms')
+      .once('value')
+      .then(snapshot => {
+        const data = snapshot.val();
+        if (!data) {
+          setAllRooms([]);
+          return;
+        }
 
-      const cleanupUpdates: Record<string, null> = {};
+        const cleanupUpdates: Record<string, null> = {};
 
-      const list = Object.keys(data)
-        .filter(code => {
-          const room = data[code];
-          // Corrupt/ghost room — host missing bhaye tyo invalid data ho,
-          // delete garne list ma thapne ani result bata bahira nikalne
-          if (!room?.host) {
-            cleanupUpdates[`/rooms/${code}`] = null;
-            return false;
-          }
-          return true;
-        })
-        .map(code => ({
-          roomCode: code,
-          roomName: data[code].roomName ?? `${data[code].host}'s Room`,
-          host: data[code].host,
-          hostPhoto: data[code].hostPhoto ?? null,
-          hostAvatarId: data[code].hostAvatarId ?? null,
-          guest: data[code].guest ?? null,
-          guestPhoto: data[code].guestPhoto ?? null,
-          guestAvatarId: data[code].guestAvatarId ?? null,
-          status: data[code].status,
-        }))
-        .filter(
-          room =>
-            (room.status === 'waiting' || room.status === 'playing') &&
-            room.host !== myName &&
-            room.guest !== myName,
-        );
+        const list = Object.keys(data)
+          .filter(code => {
+            const room = data[code];
+            // Corrupt/ghost room — missing host means invalid data. Queue it for
+            // deletion and exclude it from the results.
+            if (!room?.host) {
+              cleanupUpdates[`/rooms/${code}`] = null;
+              return false;
+            }
+            return true;
+          })
+          .map(code => ({
+            roomCode: code,
+            roomName: data[code].roomName ?? `${data[code].host}'s Room`,
+            host: data[code].host,
+            hostPhoto: data[code].hostPhoto ?? null,
+            hostAvatarId: data[code].hostAvatarId ?? null,
+            guest: data[code].guest ?? null,
+            guestPhoto: data[code].guestPhoto ?? null,
+            guestAvatarId: data[code].guestAvatarId ?? null,
+            status: data[code].status,
+          }))
+          .filter(
+            room =>
+              (room.status === 'waiting' || room.status === 'playing') &&
+              room.host !== myName &&
+              room.guest !== myName,
+          );
 
-      list.sort((a, b) => {
-        if (a.status === b.status) return 0;
-        return a.status === 'waiting' ? -1 : 1;
+        list.sort((a, b) => {
+          if (a.status === b.status) return 0;
+          return a.status === 'waiting' ? -1 : 1;
+        });
+
+        setAllRooms(list);
+        if (Object.keys(cleanupUpdates).length > 0) {
+          database()
+            .ref()
+            .update(cleanupUpdates)
+            .then(() =>
+              console.log(
+                'Cleaned up ghost rooms:',
+                Object.keys(cleanupUpdates),
+              ),
+            )
+            .catch(err =>
+              console.log('Ghost room cleanup FAILED:', err.message),
+            );
+        }
       });
-
-      setAllRooms(list);
-
-      // Ghost room haru pheला fetch garda nai automatically delete garने
-      if (Object.keys(cleanupUpdates).length > 0) {
-        database()
-          .ref()
-          .update(cleanupUpdates)
-          .then(() => console.log('Cleaned up ghost rooms:', Object.keys(cleanupUpdates)))
-          .catch(err => console.log('Ghost room cleanup FAILED:', err.message));
-      }
-    });
-};
+  };
 
   // FIREBASE LISTENER
-  const  listenToRoom = (code: string) => {
+  const listenToRoom = (code: string) => {
     if (listenedCodeRef.current === code && roomRef.current) {
       console.log('Skipping duplicate listenToRoom for', code);
       return;
@@ -544,7 +532,7 @@ const fetchAllRooms = () => {
       if (!data) return;
 
       setBoard(normalizeBoard(data.board));
-      hostUidRef.current = data.hostUid ?? null;   
+      hostUidRef.current = data.hostUid ?? null;
       guestUidRef.current = data.guestUid ?? null;
       setCurrentPlayer(data.currentTurn ?? 'X');
       setWinner(data.winner ?? null);
@@ -556,7 +544,7 @@ const fetchAllRooms = () => {
         if (recordedResultKeyRef.current !== resultKey) {
           recordedResultKeyRef.current = resultKey;
           const currentRole = myRoleRef.current;
-             const opponent = data.host === myName ? data.guest : data.host;
+          const opponent = data.host === myName ? data.guest : data.host;
           if (data.isDraw) {
             recordGameResult('draw');
           } else if (currentRole) {
@@ -579,7 +567,7 @@ const fetchAllRooms = () => {
       const oppPhoto = data.host === myName ? data.guestPhoto : data.hostPhoto;
       setOpponentPhoto(oppPhoto ?? null);
 
-      // opponent ko avatarId — host/guest jo huncha teskoo pheri track garne
+      // Track the opponent's avatarId — whichever of host/guest they are
       const oppAvatarId =
         data.host === myName ? data.guestAvatarId : data.hostAvatarId;
       setOpponentAvatarId(oppAvatarId ?? null);
@@ -611,67 +599,11 @@ const fetchAllRooms = () => {
     });
   };
 
-  // const handleMultiplayerPress = (i: number) => {
-  //   if (!roomRef.current || !myRole) return;
-  //   if (board[i] || winner) return;
-  //   if (!isMyTurn) return;
-  //   if (processingMoveRef.current) return; // block double-tap / duplicate fire
-  //   processingMoveRef.current = true;
-
-  //   roomRef.current
-  //     .once('value')
-  //     .then(snapshot => {
-  //       const data = snapshot.val();
-
-  //       if (data.currentTurn !== myRole) return;
-
-  //       const newBoard = normalizeBoard(data.board);
-  //       newBoard[i] = myRole;
-
-  //       const win = checkwin(newBoard);
-  //       const draw = newBoard.every(c => c !== null) && !win;
-
-  //       if (win) {
-  //         updateLeaderboard(myName);
-
-  //         const winnerUid = win === 'X' ? data.hostUid : data.guestUid;
-  //         const loserUid = win === 'X' ? data.guestUid : data.hostUid;
-
-  //         if (!winnerUid || !loserUid) {
-  //           console.error('Missing UID for stats update:', {
-  //             winnerUid,
-  //             loserUid,
-  //             data,
-  //           });
-  //         }
-
-  //         updatePlayerStats(winnerUid, 'win');
-  //         updatePlayerStats(loserUid, 'loss');
-  //       } else if (draw) {
-  //         updatePlayerStats(data.hostUid, 'draw');
-  //         updatePlayerStats(data.guestUid, 'draw');
-  //       }
-
-  //       const nextTurn: Player = myRole === 'X' ? 'O' : 'X';
-
-  //       return roomRef.current?.update({
-  //         board: newBoard,
-  //         currentTurn: win || draw ? null : nextTurn,
-  //         winner: win ?? null,
-  //         isDraw: draw,
-  //       });
-  //     })
-  //     .catch(err => console.log('handleMultiplayerPress error:', err.message))
-  //     .finally(() => {
-  //       processingMoveRef.current = false; // unlock once this move is fully processed
-  //     });
-  // };
-
   const handleMultiplayerPress = (i: number) => {
     if (!roomRef.current || !myRole) return;
     if (board[i] || winner) return;
     if (!isMyTurn) return;
-    if (processingMoveRef.current) return; // block double-tap / duplicate fire
+    if (processingMoveRef.current) return;
     processingMoveRef.current = true;
 
     const newBoard = [...board];
@@ -717,7 +649,6 @@ const fetchAllRooms = () => {
       });
   };
 
-
   useEffect(() => {
     if (myRole) {
       setIsMyTurn(currentPlayer === myRole);
@@ -760,7 +691,9 @@ const fetchAllRooms = () => {
             last_changed: database.ServerValue.TIMESTAMP,
           });
         })
-        .catch(err => console.log('setupPresence onConnectedChange FAILED:', err.message));
+        .catch(err =>
+          console.log('setupPresence onConnectedChange FAILED:', err.message),
+        );
     };
 
     connectedRef.on('value', onConnectedChange);
@@ -768,16 +701,18 @@ const fetchAllRooms = () => {
       connectedRef.off('value', onConnectedChange);
 
       if (!auth().currentUser) return;
-      myStatusRef.set({
-        state: 'offline',
-        last_changed: database.ServerValue.TIMESTAMP,
-      })
-      .catch(err => console.log('setupPresence cleanup FAILED:', err.message));
-    }
+      myStatusRef
+        .set({
+          state: 'offline',
+          last_changed: database.ServerValue.TIMESTAMP,
+        })
+        .catch(err =>
+          console.log('setupPresence cleanup FAILED:', err.message),
+        );
+    };
   };
 
   const listenToPresence = (names: string[]) => {
-    // purano listeners hataune jun ab list ma chaina
     Object.keys(presenceRefsRef.current).forEach(name => {
       if (!names.includes(name)) {
         presenceRefsRef.current[name].off();
@@ -786,8 +721,7 @@ const fetchAllRooms = () => {
     });
 
     names.forEach(name => {
-      if (presenceRefsRef.current[name]) return; // pahile dekhi nai sunirakheko
-
+      if (presenceRefsRef.current[name]) return;
       const ref = database().ref(`/status/${name}`);
       presenceRefsRef.current[name] = ref;
 
@@ -809,8 +743,6 @@ const fetchAllRooms = () => {
     isLeavingRef.current = true;
 
     if (opponentName && myName && opponentName !== myName) {
-      // saveSessionMatchRecord(opponentName, roomCode);
-
       database()
         .ref(`/recentOpponents/${myName}/${opponentName}`)
         .set({
@@ -830,20 +762,6 @@ const fetchAllRooms = () => {
     }
 
     const currentRef = roomRef.current;
-
-    // Explicitly leave garda pahile pending onDisconnect hook cancel garne —
-    // natra room already manually remove vaisakepachi, purano onDisconnect
-    // hook le arko naya room (same ref reuse vaye) lai galat hataauna sakcha
-    // roomRef.current.onDisconnect().cancel();
-
-    // roomRef.current
-    //   .remove()
-    //   .then(() => console.log('Room removed successfully'))
-    //   .catch(err => console.log('Room remove FAILED:', err.message));
-
-    // Cancel any pending onDisconnect hook first, then remove/update
-    // the room — avoids a race between the manual action and the
-    // onDisconnect hook both firing
     currentRef
       .onDisconnect()
       .cancel()
@@ -852,27 +770,30 @@ const fetchAllRooms = () => {
           // Host: delete the whole room
           return currentRef.remove();
         } else {
-          // Guest: keep the room alive, just clear my own fields
           return currentRef.update({
             guest: null,
             guestUid: null,
             guestPhoto: null,
             guestAvatarId: null,
             status: 'waiting',
+            board: Array(9).fill(null),
+            currentTurn: 'X',
+            lastFirst: 'X',
+            winner: null,
+            isDraw: false,
+            rematchX: false,
+            rematchO: false,
           });
         }
       })
       .then(() => console.log('leaveRoom cleanup successful'))
       .catch(err => console.log('leaveRoom cleanup FAILED:', err.message));
 
-    // roomRef.current?.off();
     currentRef.off();
 
     roomRef.current = null;
     listenedCodeRef.current = null;
     recordedResultKeyRef.current = null;
-    // session bandh bhako mark garne — arko naya room/invite le matra
-    // naya session start garna paos
     activeSessionKeyRef.current = null;
 
     setMyRole(null);
@@ -908,7 +829,7 @@ const fetchAllRooms = () => {
       return {
         wins: prevWins + 1,
         uid,
-          name: winnerName,
+        name: winnerName,
         photo,
         avatarId: myAvatarId ?? null,
       };
@@ -916,129 +837,140 @@ const fetchAllRooms = () => {
   };
 
   const renameUsernameEverywhere = (oldName: string, newName: string) => {
-  if (!oldName || !newName || oldName === newName) return;
+    if (!oldName || !newName || oldName === newName) return;
 
-  const db = database();
-  const updates: Record<string, any> = {};
+    const db = database();
+    const updates: Record<string, any> = {};
 
-  // ---- recentOpponents migrate garne ----
-  const recentPromise = db
-    .ref(`/recentOpponents/${oldName}`)
-    .once('value')
-    .then(myRecentSnap => {
-      const myRecentData = myRecentSnap.val();
-      if (!myRecentData) return null;
+    // ---- migrate recentOpponents ----
+    const recentPromise = db
+      .ref(`/recentOpponents/${oldName}`)
+      .once('value')
+      .then(myRecentSnap => {
+        const myRecentData = myRecentSnap.val();
+        if (!myRecentData) return null;
 
-      const opponentNames = Object.keys(myRecentData);
+        const opponentNames = Object.keys(myRecentData);
 
-      const oppPromises = opponentNames.map(opponentName => {
-        updates[`/recentOpponents/${newName}/${opponentName}`] =
-          myRecentData[opponentName];
-        updates[`/recentOpponents/${oldName}/${opponentName}`] = null;
-        
+        const oppPromises = opponentNames.map(opponentName => {
+          updates[`/recentOpponents/${newName}/${opponentName}`] =
+            myRecentData[opponentName];
+          updates[`/recentOpponents/${oldName}/${opponentName}`] = null;
 
-        return db
-          .ref(`/recentOpponents/${opponentName}/${oldName}`)
-          .once('value')
-          .then(oppEntrySnap => {
-            const oppEntryData = oppEntrySnap.val();
-            if (oppEntryData) {
-              updates[`/recentOpponents/${opponentName}/${newName}`] = {
-                ...oppEntryData,
-                name: newName,
-                avatarId: myAvatarId ?? null, 
-                photo: myPhoto ?? null, 
-              };
-              updates[`/recentOpponents/${opponentName}/${oldName}`] = null;
-            }
-          });
+          return db
+            .ref(`/recentOpponents/${opponentName}/${oldName}`)
+            .once('value')
+            .then(oppEntrySnap => {
+              const oppEntryData = oppEntrySnap.val();
+              if (oppEntryData) {
+                updates[`/recentOpponents/${opponentName}/${newName}`] = {
+                  ...oppEntryData,
+                  name: newName,
+                  avatarId: myAvatarId ?? null,
+                  photo: myPhoto ?? null,
+                };
+                updates[`/recentOpponents/${opponentName}/${oldName}`] = null;
+              }
+            });
+        });
+
+        return Promise.all(oppPromises);
       });
 
-      return Promise.all(oppPromises);
-    });
+    // ---- migrate gameFriends ----
+    const friendsPromise = db
+      .ref(`/gameFriends/${oldName}`)
+      .once('value')
+      .then(myFriendsSnap => {
+        const myFriendsData = myFriendsSnap.val();
+        if (!myFriendsData) return null;
 
-  // ---- gameFriends migrate garne ----
-  const friendsPromise = db
-    .ref(`/gameFriends/${oldName}`)
-    .once('value')
-    .then(myFriendsSnap => {
-      const myFriendsData = myFriendsSnap.val();
-      if (!myFriendsData) return null;
+        const friendNames = Object.keys(myFriendsData);
 
-      const friendNames = Object.keys(myFriendsData);
+        const friendPromises = friendNames.map(friendName => {
+          updates[`/gameFriends/${newName}/${friendName}`] =
+            myFriendsData[friendName];
+          updates[`/gameFriends/${oldName}/${friendName}`] = null;
 
-      const friendPromises = friendNames.map(friendName => {
-        updates[`/gameFriends/${newName}/${friendName}`] =
-          myFriendsData[friendName];
-        updates[`/gameFriends/${oldName}/${friendName}`] = null;
+          return db
+            .ref(`/gameFriends/${friendName}/${oldName}`)
+            .once('value')
+            .then(friendEntrySnap => {
+              const friendEntryData = friendEntrySnap.val();
+              if (friendEntryData) {
+                updates[`/gameFriends/${friendName}/${newName}`] = {
+                  ...friendEntryData,
+                  name: newName,
+                };
+                updates[`/gameFriends/${friendName}/${oldName}`] = null;
+              }
+            });
+        });
 
-        return db
-          .ref(`/gameFriends/${friendName}/${oldName}`)
-          .once('value')
-          .then(friendEntrySnap => {
-            const friendEntryData = friendEntrySnap.val();
-            if (friendEntryData) {
-              updates[`/gameFriends/${friendName}/${newName}`] = {
-                ...friendEntryData,
-                name: newName,
-              };
-              updates[`/gameFriends/${friendName}/${oldName}`] = null;
-            }
-          });
+        return Promise.all(friendPromises);
       });
 
-      return Promise.all(friendPromises);
-    });
+    // ---- migrate presence/status ----
+    const statusPromise = db
+      .ref(`/status/${oldName}`)
+      .once('value')
+      .then(statusSnap => {
+        if (statusSnap.exists()) {
+          updates[`/status/${newName}`] = statusSnap.val();
+          updates[`/status/${oldName}`] = null;
+        }
+      });
 
-  // ---- presence/status migrate garne ----
-  const statusPromise = db
-    .ref(`/status/${oldName}`)
-    .once('value')
-    .then(statusSnap => {
-      if (statusSnap.exists()) {
-        updates[`/status/${newName}`] = statusSnap.val();
-        updates[`/status/${oldName}`] = null;
-      }
-    });
+    const matchHistoryPromise = db
+      .ref(`/matchHistory/${oldName}`)
+      .once('value')
+      .then(historySnap => {
+        const historyData = historySnap.val();
+        if (historyData) {
+          updates[`/matchHistory/${newName}`] = historyData;
+          updates[`/matchHistory/${oldName}`] = null;
+        }
+      });
 
-      const matchHistoryPromise = db
-    .ref(`/matchHistory/${oldName}`)
-    .once('value')
-    .then(historySnap => {
-      const historyData = historySnap.val();
-      if (historyData) {
-        updates[`/matchHistory/${newName}`] = historyData;
-        updates[`/matchHistory/${oldName}`] = null;
-      }
-    });
-
-  Promise.all([recentPromise, friendsPromise, statusPromise, matchHistoryPromise])
-    .then(() => {
-      if (Object.keys(updates).length === 0) return null;
-      return db.ref().update(updates);
-    })
-    .then(() => {
-      updateLeaderboardName(newName);
-      console.log('Username migration complete:', oldName, '->', newName);
-    })
-    .catch(err => console.log('renameUsernameEverywhere FAILED:', err.message));
-};
+    Promise.all([
+      recentPromise,
+      friendsPromise,
+      statusPromise,
+      matchHistoryPromise,
+    ])
+      .then(() => {
+        if (Object.keys(updates).length === 0) return null;
+        return db.ref().update(updates);
+      })
+      .then(() => {
+        updateLeaderboardName(newName);
+        console.log('Username migration complete:', oldName, '->', newName);
+      })
+      .catch(err =>
+        console.log('renameUsernameEverywhere FAILED:', err.message),
+      );
+  };
 
   const updateLeaderboardName = (newName: string) => {
-  const uid = auth().currentUser?.uid ?? null;
-  if (!uid) return;
-  const weekKey = getCurrentWeekKey();
-  const lbRef = database().ref(`/leaderboard/${weekKey}/${uid}`);
-  lbRef.once('value').then(snap => {
-    if (snap.exists()) {
-      lbRef
-        .update({ name: newName, avatarId: myAvatarId ?? null,
-          photo: myPhoto ?? null, })
-        .catch(err => console.log('Leaderboard name update FAILED:', err.message));
-    }
-    // entry छैन भने केही गर्दैन — user ले अझै कुनै game जितेको छैन
-  });
-};
+    const uid = auth().currentUser?.uid ?? null;
+    if (!uid) return;
+    const weekKey = getCurrentWeekKey();
+    const lbRef = database().ref(`/leaderboard/${weekKey}/${uid}`);
+    lbRef.once('value').then(snap => {
+      if (snap.exists()) {
+        lbRef
+          .update({
+            name: newName,
+            avatarId: myAvatarId ?? null,
+            photo: myPhoto ?? null,
+          })
+          .catch(err =>
+            console.log('Leaderboard name update FAILED:', err.message),
+          );
+      }
+    });
+  };
+
   // MATCH HISTORY helpers
   const startNewSession = (code: string) => {
     if (activeSessionKeyRef.current === code) {
@@ -1048,7 +980,7 @@ const fetchAllRooms = () => {
     activeSessionKeyRef.current = code;
     sessionStatsRef.current = { wins: 0, losses: 0, draws: 0 };
     recordedResultKeyRef.current = null;
-      currentSessionRecordRef.current = null; //👈
+    currentSessionRecordRef.current = null; //👈
   };
 
   const recordGameResult = (result: 'win' | 'loss' | 'draw') => {
@@ -1058,193 +990,101 @@ const fetchAllRooms = () => {
     else sessionStatsRef.current.draws += 1;
   };
 
-  // const saveSessionMatchRecord = (opponent: string, code: string) => {
-  //   if (!myName) return;
-  //   const stats = sessionStatsRef.current;
-  //   const totalGames = stats.wins + stats.losses + stats.draws;
-  //   if (totalGames === 0) return;
+  const saveSessionMatchRecord = (opponent: string, code: string) => {
+    if (!myName) return;
+    const stats = sessionStatsRef.current;
+    const totalGames = stats.wins + stats.losses + stats.draws;
+    if (totalGames === 0) return;
 
-  //   const recordRef = database().ref(`/matchHistory/${myName}`).push();
-  //   recordRef.set({
-  //     opponent: opponent || 'Unknown',
-  //     wins: stats.wins,
-  //     losses: stats.losses,
-  //     draws: stats.draws,
-  //     totalGames,
-  //     roomCode: code,
-  //     timestamp: database.ServerValue.TIMESTAMP,
-  //   });
-  // };
+    const recordData = {
+      opponent: opponent || 'Unknown',
+      wins: stats.wins,
+      losses: stats.losses,
+      draws: stats.draws,
+      totalGames,
+      roomCode: code,
+      timestamp: database.ServerValue.TIMESTAMP,
+    };
 
-//   const saveSessionMatchRecord = (opponent: string, code: string) => {
-//   if (!myName) return;
-//   const stats = sessionStatsRef.current;
-//   const totalGames = stats.wins + stats.losses + stats.draws;
-//   if (totalGames === 0) return;
+    if (currentSessionRecordRef.current) {
+      currentSessionRecordRef.current
+        .update(recordData)
+        .catch(err =>
+          console.log('saveSessionMatchRecord update FAILED:', err.message),
+        );
+      return;
+    }
 
-//   const rootRef = database().ref(`/matchHistory/${myName}`);
+    const rootRef = database().ref(`/matchHistory/${myName}`);
+    rootRef
+      .once('value')
+      .then(snap => {
+        const data = snap.val();
+        const records = data?.records ?? {};
+        const cycleStartedAt = data?.cycleStartedAt ?? null;
+        const count = Object.keys(records).length;
+        const now = Date.now();
 
-//   rootRef
-//     .once('value')
-//     .then(snap => {
-//       const data = snap.val();
-//       const records = data?.records ?? {};
-//       const cycleStartedAt = data?.cycleStartedAt ?? null;
-//       const count = Object.keys(records).length;
-//       const now = Date.now();
+        const shouldReset =
+          !cycleStartedAt ||
+          (count > MATCH_HISTORY_THRESHOLD
+            ? now - cycleStartedAt >= ONE_WEEK_MS
+            : now - cycleStartedAt >= TWO_WEEKS_MS);
 
-//       const shouldReset =
-//         !cycleStartedAt ||
-//         (count > MATCH_HISTORY_THRESHOLD
-//           ? now - cycleStartedAt >= ONE_WEEK_MS
-//           : now - cycleStartedAt >= TWO_WEEKS_MS);
+        const createRecord = () => {
+          const newRecordRef = database()
+            .ref(`/matchHistory/${myName}/records`)
+            .push();
+          currentSessionRecordRef.current = newRecordRef;
+          return newRecordRef.set(recordData);
+        };
 
-//       const writeNewRecord = () => {
-//         const newRecordRef = database()
-//           .ref(`/matchHistory/${myName}/records`)
-//           .push();
-//         return newRecordRef.set({
-//           opponent: opponent || 'Unknown',
-//           wins: stats.wins,
-//           losses: stats.losses,
-//           draws: stats.draws,
-//           totalGames,
-//           roomCode: code,
-//           timestamp: database.ServerValue.TIMESTAMP,
-//         });
-//       };
-
-//       if (shouldReset) {
-//         // purano cycle हटाएर नयाँ cycle सुरु गर्ने
-//         return rootRef
-//           .set({
-//             cycleStartedAt: database.ServerValue.TIMESTAMP,
-//             records: {},
-//           })
-//           .then(() => writeNewRecord());
-//       }
-
-//       return writeNewRecord();
-//     })
-//     .catch(err => console.log('saveSessionMatchRecord FAILED:', err.message));
-// };
-
-const saveSessionMatchRecord = (opponent: string, code: string) => {
-  if (!myName) return;
-  const stats = sessionStatsRef.current;
-  const totalGames = stats.wins + stats.losses + stats.draws;
-  if (totalGames === 0) return;
-
-  const recordData = {
-    opponent: opponent || 'Unknown',
-    wins: stats.wins,
-    losses: stats.losses,
-    draws: stats.draws,
-    totalGames,
-    roomCode: code,
-    timestamp: database.ServerValue.TIMESTAMP,
+        if (shouldReset) {
+          return rootRef
+            .set({
+              cycleStartedAt: database.ServerValue.TIMESTAMP,
+              records: {},
+            })
+            .then(() => createRecord());
+        }
+        return createRecord();
+      })
+      .catch(err => console.log('saveSessionMatchRecord FAILED:', err.message));
   };
 
-  if (currentSessionRecordRef.current) {
-    currentSessionRecordRef.current
-      .update(recordData)
-      .catch(err => console.log('saveSessionMatchRecord update FAILED:', err.message));
-    return;
-  }
-
-  const rootRef = database().ref(`/matchHistory/${myName}`);
-  rootRef
-    .once('value')
-    .then(snap => {
-      const data = snap.val();
-      const records = data?.records ?? {};
-      const cycleStartedAt = data?.cycleStartedAt ?? null;
-      const count = Object.keys(records).length;
-      const now = Date.now();
-
-      const shouldReset =
-        !cycleStartedAt ||
-        (count > MATCH_HISTORY_THRESHOLD
-          ? now - cycleStartedAt >= ONE_WEEK_MS
-          : now - cycleStartedAt >= TWO_WEEKS_MS);
-
-      const createRecord = () => {
-        const newRecordRef = database().ref(`/matchHistory/${myName}/records`).push();
-        currentSessionRecordRef.current = newRecordRef;
-        return newRecordRef.set(recordData);
-      };
-
-      if (shouldReset) {
-        return rootRef
-          .set({ cycleStartedAt: database.ServerValue.TIMESTAMP, records: {} })
-          .then(() => createRecord());
-      }
-      return createRecord();
-    })
-    .catch(err => console.log('saveSessionMatchRecord FAILED:', err.message));
-}; //👈
-
-
-  // const fetchMatchHistory = () => {
-  //   if (!myName) return;
-  //   database()
-  //     .ref(`/matchHistory/${myName}`)
-  //     .orderByChild('timestamp')
-  //     .limitToLast(50)
-  //     .once('value')
-  //     .then(snapshot => {
-  //       const data = snapshot.val();
-  //       if (!data) {
-  //         setMatchHistory([]);
-  //         return;
-  //       }
-  //       const list = Object.values(data) as {
-  //         opponent: string;
-  //         wins: number;
-  //         losses: number;
-  //         draws: number;
-  //         totalGames: number;
-  //         roomCode: string;
-  //         timestamp: number;
-  //       }[];
-  //       list.sort((a, b) => b.timestamp - a.timestamp);
-  //       setMatchHistory(list);
-  //     });
-  // };
-
   const fetchMatchHistory = () => {
-  if (!myName) return;
-  database()
-    .ref(`/matchHistory/${myName}/records`)
-    .orderByChild('timestamp')
-    .once('value')
-    .then(snapshot => {
-      const data = snapshot.val();
-      if (!data) {
-        setMatchHistory([]);
-        return;
-      }
-      const list = Object.values(data) as {
-        opponent: string;
-        wins: number;
-        losses: number;
-        draws: number;
-        totalGames: number;
-        roomCode: string;
-        timestamp: number;
-      }[];
-      list.sort((a, b) => b.timestamp - a.timestamp);
-      setMatchHistory(list);
-    })
-    .catch(err => console.log('fetchMatchHistory error:', err.message));
-};
+    if (!myName) return;
+    database()
+      .ref(`/matchHistory/${myName}/records`)
+      .orderByChild('timestamp')
+      .once('value')
+      .then(snapshot => {
+        const data = snapshot.val();
+        if (!data) {
+          setMatchHistory([]);
+          return;
+        }
+        const list = Object.values(data) as {
+          opponent: string;
+          wins: number;
+          losses: number;
+          draws: number;
+          totalGames: number;
+          roomCode: string;
+          timestamp: number;
+        }[];
+        list.sort((a, b) => b.timestamp - a.timestamp);
+        setMatchHistory(list);
+      })
+      .catch(err => console.log('fetchMatchHistory error:', err.message));
+  };
 
   const getCurrentWeekKey = (): string => {
     const now = new Date();
     const target = new Date(now.valueOf());
     const dayNr = (now.getDay() + 6) % 7; // Monday = 0 ... Sunday = 6
     target.setDate(target.getDate() - dayNr + 3); // nearest Thursday
-    const firstThursday = new Date(target.getFullYear(), 0, 4); 
+    const firstThursday = new Date(target.getFullYear(), 0, 4);
     const diff = target.getTime() - firstThursday.getTime();
     const week = 1 + Math.round(diff / (7 * 24 * 60 * 60 * 1000));
     return `${target.getFullYear()}-W${String(week).padStart(2, '0')}`;
@@ -1273,7 +1113,7 @@ const saveSessionMatchRecord = (opponent: string, code: string) => {
             };
           }
           return {
-            name:entry?.name ?? key,
+            name: entry?.name ?? key,
             wins: entry?.wins ?? 0,
             uid: entry?.uid ?? null,
             photo: entry?.photo ?? null,
@@ -1439,11 +1279,9 @@ const saveSessionMatchRecord = (opponent: string, code: string) => {
         const fromPhoto = reqData?.fromPhoto ?? null;
         const fromAvatarId = reqData?.fromAvatarId ?? null;
         const myUid = auth().currentUser?.uid ?? null;
-        // const myPhoto = auth().currentUser?.photoURL ?? null;
-
         const updates: Record<string, any> = {};
 
-        // yo side ma "fromName" mero friend banyo — uski avatarId "fromAvatarId" ho
+        // On this side, "fromName" just became my friend — their avatarId is fromAvatarId
         updates[`/gameFriends/${myName}/${fromName}`] = {
           name: fromName,
           uid: fromUid,
@@ -1451,7 +1289,8 @@ const saveSessionMatchRecord = (opponent: string, code: string) => {
           avatarId: fromAvatarId,
           timestamp: database.ServerValue.TIMESTAMP,
         };
-        // udhi side ma "myName" uski friend banyo — mero avatarId "myAvatarId" ho
+
+        // On their side, "myName" became their friend — my avatarId is myAvatarId
         updates[`/gameFriends/${fromName}/${myName}`] = {
           name: myName,
           uid: myUid,
@@ -1491,76 +1330,76 @@ const saveSessionMatchRecord = (opponent: string, code: string) => {
 
   const listenToFriendRequests = () => {
     if (!myName) return;
-    database()
-      .ref(`/friendRequests/${myName}`)
-      .on('value', snap => {
-        const data = snap.val();
-        if (!data) {
-          setIncomingFriendRequests([]);
-          return;
-        }
-        const list = Object.keys(data)
-          .filter(from => from !== myName)
-          .map(from => ({
-            from,
-            status: data[from].status,
-            fromAvatarId: data[from]?.fromAvatarId ?? null,
-            fromPhoto: data[from]?.fromPhoto ?? null,
-          }));
-        setIncomingFriendRequests(list.filter(i => i.status === 'pending'));
-      });
+    if (friendReqListenerRef.current) friendReqListenerRef.current.off();
+    const ref = database().ref(`/friendRequests/${myName}`);
+    friendReqListenerRef.current = ref;
+    ref.on('value', snap => {
+      const data = snap.val();
+      if (!data) {
+        setIncomingFriendRequests([]);
+        return;
+      }
+      const list = Object.keys(data)
+        .filter(from => from !== myName)
+        .map(from => ({
+          from,
+          status: data[from].status,
+          fromAvatarId: data[from]?.fromAvatarId ?? null,
+          fromPhoto: data[from]?.fromPhoto ?? null,
+        }));
+      setIncomingFriendRequests(list.filter(i => i.status === 'pending'));
+    });
   };
 
   const fetchGameFriends = () => {
-  if (!myName) return;
-  database()
-    .ref(`/gameFriends/${myName}`)
-    .once('value')
-    .then(snapshot => {
-      const data = snapshot.val();
-      if (!data) {
-        setGameFriends([]);
-        return null;
-      }
-
-      const names = Object.keys(data).filter(name => name !== myName);
-
-      const promises = names.map(name => {
-        const uid = data[name]?.uid ?? null;
-        const photo = data[name]?.photo ?? null;
-        const avatarId = data[name]?.avatarId ?? null;
-        const displayName = data[name]?.name ?? name;
-        
-        if (!uid) {
-          return Promise.resolve({ name: displayName, uid, photo, avatarId });
+    if (!myName) return;
+    database()
+      .ref(`/gameFriends/${myName}`)
+      .once('value')
+      .then(snapshot => {
+        const data = snapshot.val();
+        if (!data) {
+          setGameFriends([]);
+          return null;
         }
-        
-        return firestore()
-        .collection('users')
-        .doc(uid)
-        .get()
-        .then(doc => {
-          const liveData = doc.data();
-          return {
-            name: liveData?.username ?? displayName,
-            uid,
-            photo: liveData?.photoURL ?? photo,
-            avatarId: liveData?.avatarId ?? avatarId,
-          };
-        })
-        .catch(err => {
-          console.log('fetchGameFriends live fetch error:', err);
-          return { name: displayName, uid, photo, avatarId };
+
+        const names = Object.keys(data).filter(name => name !== myName);
+
+        const promises = names.map(name => {
+          const uid = data[name]?.uid ?? null;
+          const photo = data[name]?.photo ?? null;
+          const avatarId = data[name]?.avatarId ?? null;
+          const displayName = data[name]?.name ?? name;
+
+          if (!uid) {
+            return Promise.resolve({ name: displayName, uid, photo, avatarId });
+          }
+
+          return firestore()
+            .collection('users')
+            .doc(uid)
+            .get()
+            .then(doc => {
+              const liveData = doc.data();
+              return {
+                name: liveData?.username ?? displayName,
+                uid,
+                photo: liveData?.photoURL ?? photo,
+                avatarId: liveData?.avatarId ?? avatarId,
+              };
+            })
+            .catch(err => {
+              console.log('fetchGameFriends live fetch error:', err);
+              return { name: displayName, uid, photo, avatarId };
+            });
         });
-      });
 
-      return Promise.all(promises).then(list => {
-        setGameFriends(list);
-      });
-    })
-    .catch(err => console.log('fetchGameFriends error:', err.message));
-};
-
+        return Promise.all(promises).then(list => {
+          setGameFriends(list);
+        });
+      })
+      .catch(err => console.log('fetchGameFriends error:', err.message));
+  };
 
   const removeFriend = (friendName: string) => {
     if (!myName || !friendName) return;
@@ -1580,62 +1419,61 @@ const saveSessionMatchRecord = (opponent: string, code: string) => {
 
   const listenToInvitations = () => {
     if (!myName) return;
-    database()
-      .ref(`/invitations/${myName}`)
-      .on('value', snap => {
-        const data = snap.val();
-        if (!data) {
-          setIncomingInvitations([]);
-          return;
-        }
-
-        const list = Object.keys(data)
-          .filter(from => from !== myName)
-          .map(from => ({
-            from,
-            status: data[from].status,
-            fromAvatarId: data[from]?.fromAvatarId ?? null,
-            fromPhoto: data[from]?.fromPhoto ?? null,
-          }));
-        setIncomingInvitations(list.filter(i => i.status === 'pending'));
-      });
+    if (invitationsListenerRef.current) invitationsListenerRef.current.off();
+    const ref = database().ref(`/invitations/${myName}`);
+    invitationsListenerRef.current = ref;
+    ref.on('value', snap => {
+      const data = snap.val();
+      if (!data) {
+        setIncomingInvitations([]);
+        return;
+      }
+      const list = Object.keys(data)
+        .filter(from => from !== myName)
+        .map(from => ({
+          from,
+          status: data[from].status,
+          fromAvatarId: data[from]?.fromAvatarId ?? null,
+          fromPhoto: data[from]?.fromPhoto ?? null,
+        }));
+      setIncomingInvitations(list.filter(i => i.status === 'pending'));
+    });
   };
 
   const listenToSentInvitations = () => {
     if (!myName) return;
-    database()
-      .ref(`/sentInvitations/${myName}`)
-      .on('value', snap => {
-        const data = snap.val();
-        if (!data) return;
+    if (sentInvListenerRef.current) sentInvListenerRef.current.off();
+    const ref = database().ref(`/sentInvitations/${myName}`);
+    sentInvListenerRef.current = ref;
+    ref.on('value', snap => {
+      const data = snap.val();
+      if (!data) return;
 
-        Object.keys(data).forEach(toName => {
-          const info = data[toName];
-          if (info.status === 'accepted' && info.roomCode) {
-            roomRef.current = database().ref(`/rooms/${info.roomCode}`);
+      Object.keys(data).forEach(toName => {
+        const info = data[toName];
+        if (info.status === 'accepted' && info.roomCode) {
+          roomRef.current = database().ref(`/rooms/${info.roomCode}`);
 
-            // Yo (host, jasले sentInvitations bata match join garcha) side
-            // pani disconnect huda room hataune
-            roomRef.current.onDisconnect().remove();
+          roomRef.current.onDisconnect().remove();
 
-            setRoomCode(info.roomCode);
-            setMyRole('X');
-            setOpponentName(toName);
-            setOpponentPhoto(info.guestPhoto ?? null);
-            setOpponentAvatarId(info.guestAvatarId ?? null);
-            setGameStarted(true);
-            startNewSession(info.roomCode);
-            listenToRoom(info.roomCode);
-            setScreen('multiplayerGame');
+          setRoomCode(info.roomCode);
+          setMyRole('X');
+          setOpponentName(toName);
+          setOpponentPhoto(info.guestPhoto ?? null);
+          setOpponentAvatarId(info.guestAvatarId ?? null);
+          setGameStarted(true);
+          startNewSession(info.roomCode);
+          listenToRoom(info.roomCode);
+          setScreen('multiplayerGame');
 
-            database().ref(`/sentInvitations/${myName}/${toName}`).remove();
-            database().ref(`/invitations/${toName}/${myName}`).remove();
-          }
-        });
+          database().ref(`/sentInvitations/${myName}/${toName}`).remove();
+          database().ref(`/invitations/${toName}/${myName}`).remove();
+        }
       });
+    });
   };
 
-  // updatePlayerStats — 'draw' pani track garcha (Firestore users/{uid})
+  // updatePlayerStats — also tracks 'draw' (Firestore users/{uid})
   const updatePlayerStats = (
     uid: string | null,
     result: 'win' | 'loss' | 'draw',
@@ -1655,8 +1493,8 @@ const saveSessionMatchRecord = (opponent: string, code: string) => {
       .catch(err => console.log('Stats update error:', err));
   };
 
-  // PLAYER STATS — Player Profile screen ko lagi Firestore bata
-  // wins/losses/draws nikaalne
+  // PLAYER STATS — fetches wins/losses/draws from Firestore for the
+  // Player Profile screen
   const fetchPlayerStatsByUid = async (
     uid: string,
   ): Promise<{ wins: number; losses: number; draws: number }> => {
@@ -1674,56 +1512,61 @@ const saveSessionMatchRecord = (opponent: string, code: string) => {
     }
   };
 
-  // USERNAME SEARCH — Firestore users collection maathi prefix search
+  // USERNAME SEARCH — prefix search over the Firestore users collection
   const searchPlayerByUsername = (query: string) => {
-  if (!query.trim()) {
-    setSearchResults([]);
-    return;
-  }
-
-  const usernameQuery = firestore()
-    .collection('users')
-    .orderBy('username')
-    .startAt(query)
-    .endAt(query + '\uf8ff')
-    .limit(15)
-    .get();
-
-  const nameQuery = firestore()
-    .collection('users')
-    .orderBy('name')
-    .startAt(query)
-    .endAt(query + '\uf8ff')
-    .limit(15)
-    .get();
-
-  Promise.all([usernameQuery, nameQuery])
-    .then(([usernameSnap, nameSnap]) => {
-      const map = new Map<
-        string,
-        { uid: string; username: string; photo: string | null; avatarId: string | null }
-      >();
-
-      [...usernameSnap.docs, ...nameSnap.docs].forEach(doc => {
-        const data = doc.data();
-        if (!data.username || data.username === myName) return;
-        if (!map.has(doc.id)) {
-          map.set(doc.id, {
-            uid: doc.id,
-            username: data.username,
-            photo: data.photoURL ?? null,
-            avatarId: data.avatarId ?? null,
-          });
-        }
-      });
-
-      setSearchResults(Array.from(map.values()));
-    })
-    .catch(err => {
-      console.log('searchPlayerByUsername error:', err);
+    if (!query.trim()) {
       setSearchResults([]);
-    });
-};
+      return;
+    }
+
+    const usernameQuery = firestore()
+      .collection('users')
+      .orderBy('username')
+      .startAt(query)
+      .endAt(query + '\uf8ff')
+      .limit(15)
+      .get();
+
+    const nameQuery = firestore()
+      .collection('users')
+      .orderBy('name')
+      .startAt(query)
+      .endAt(query + '\uf8ff')
+      .limit(15)
+      .get();
+
+    Promise.all([usernameQuery, nameQuery])
+      .then(([usernameSnap, nameSnap]) => {
+        const map = new Map<
+          string,
+          {
+            uid: string;
+            username: string;
+            photo: string | null;
+            avatarId: string | null;
+          }
+        >();
+
+        [...usernameSnap.docs, ...nameSnap.docs].forEach(doc => {
+          const data = doc.data();
+          if (!data.username || data.username === myName) return;
+          if (!map.has(doc.id)) {
+            map.set(doc.id, {
+              uid: doc.id,
+              username: data.username,
+              photo: data.photoURL ?? null,
+              avatarId: data.avatarId ?? null,
+            });
+          }
+        });
+
+        setSearchResults(Array.from(map.values()));
+      })
+      .catch(err => {
+        console.log('searchPlayerByUsername error:', err);
+        setSearchResults([]);
+      });
+  };
   // ============ RANDOM MATCH ============
 
   const cancelRandomMatch = () => {
@@ -1848,7 +1691,7 @@ const saveSessionMatchRecord = (opponent: string, code: string) => {
             const code = val.roomCode;
             roomRef.current = database().ref(`/rooms/${code}`);
 
-            // Guest (matched) side bata disconnect huda room hataune
+            // Guest (matched) side: remove the room if this player disconnects
             roomRef.current.onDisconnect().remove();
 
             setRoomCode(code);
@@ -1934,7 +1777,7 @@ const saveSessionMatchRecord = (opponent: string, code: string) => {
     myRematchRequested,
     opponentRematchRequested,
     updateLeaderboardName,
-     renameUsernameEverywhere, 
+    renameUsernameEverywhere,
   };
 };
 

@@ -88,10 +88,8 @@ const MultiplayerScreen = ({ navigation }: Props) => {
     fetchRecentOpponents();
     fetchGameFriends();
   }, [myName]);
-
-  // Screen focus hunda pani game friends refresh garne — kunai arko screen
-  // (jastai PlayerProfile) bata friend remove garisake pachi ali "Add"
-  // button feri dekhinu parxa
+  
+// Refresh friends list on screen focus, in case it changed elsewhere
   useEffect(() => {
     const unsubscribe = navigation.addListener('focus', () => {
       fetchGameFriends();
@@ -108,10 +106,7 @@ const MultiplayerScreen = ({ navigation }: Props) => {
     }
   };
 
-  // Kunai player already game friend ho ki hoina check garne — yesle
-  // "Add" button lai Recent Players ra Search results duibai ma control garxa.
-  // Friend remove vayesi gameFriends bata hataunxa, ani yo function le
-  // automatic false return garxa, so "Add" button feri deखिन्छ।
+// Whether this player is already a friend — controls the "Add" button
   const isFriend = (name: string) =>
     gameFriends.some(
       (f: any) => f.name?.toLowerCase() === name?.toLowerCase()
@@ -138,7 +133,6 @@ const MultiplayerScreen = ({ navigation }: Props) => {
     setTimeout(() => setToastMessage(null), 3000);
   };
 
-  // debounce username search — avoid firing a query on every keystroke
   const searchTimerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   useEffect(() => {
@@ -155,7 +149,7 @@ const MultiplayerScreen = ({ navigation }: Props) => {
     }, 350);
   };
 
-  // list rows (game friends / search results) ko avatar — avatarId > photo > letter
+  // Avatar for list rows (game friends / search results) — avatarId > photo > letter
   const renderRowAvatar = (
     name: string,
     photo: string | null,
@@ -392,7 +386,6 @@ const MultiplayerScreen = ({ navigation }: Props) => {
             onPress={() =>
               requireLogin(() => {
                 generateRoomCode();
-                navigation.navigate('Waiting');
               })
             }
           >

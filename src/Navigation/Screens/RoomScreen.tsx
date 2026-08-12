@@ -31,9 +31,9 @@ const RoomScreen = ({ navigation }: Props) => {
   } = useGameLogic();
   const { userProfile, user } = useAuth();
 
-  // GameLogic() le myPhoto/myAvatarId return gardaina (tyo chai input
-  // parameter matra ho) — so aafno photo/avatarId AuthContext bata
-  // seedhai tannuparcha, MultiplayerScreen.tsx jasto
+  // GameLogic() doesn't return myPhoto/myAvatarId — those are only input
+// parameters — so pull your own photo/avatarId directly from AuthContext,
+// same as in MultiplayerScreen.tsx
   const myPhoto = userProfile?.photoURL || user?.photoURL || null;
   const myAvatarId = userProfile?.avatarId || null;
 

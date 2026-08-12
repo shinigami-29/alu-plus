@@ -28,8 +28,6 @@ type Props = {
   route: RouteProp<any, any>;
 };
 
-// Rank tiers -> color so the ring / badge changes with performance,
-// like a "rank" indicator in most game profile cards
 const RANKS = [
   { min: 70, label: 'CHAMPION', color: '#E0972A' },
   { min: 50, label: 'CONTENDER', color: '#5FA8E0' },
@@ -130,19 +128,13 @@ const PlayerProfileScreen = ({ navigation, route }: Props) => {
             <Avatar name={name} photoURL={photo} avatarId={avatarId} size={88} />
           </View>
 
-          {/* Rank badge overlapping the ring, like a level/tier chip */}
           <View style={[s.rankPill, { backgroundColor: rank.color }]}>
-            {/* <Trophy size={11} color="#12194A" /> */}
             <Text style={s.rankPillText}>{name}</Text>
           </View>
         </View>
 
         {/* ===== Card body ===== */}
         <View style={s.card}>
-          {/* <Text style={s.name} numberOfLines={1}>
-            {name}
-          </Text> */}
-
           {loading ? (
             <ActivityIndicator color="#E0972A" style={{ marginTop: 30 }} />
           ) : totalGames === 0 ? (

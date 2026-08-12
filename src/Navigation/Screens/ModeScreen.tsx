@@ -28,7 +28,7 @@ import SectionTitle from '../../components/SectionTitle/SectionTitle';
 
 type Props = { navigation: NativeStackNavigationProp<any> };
 
-// Naya invite VA friend request duibai ko lagi 10 sec ko banner
+// A 10-second banner shown for both a new game invite AND a friend request
 function InviteToast({
   invitations,
   friendRequests,
@@ -45,10 +45,8 @@ function InviteToast({
     rejectFriendRequest,
   } = useGameLogic();
 
-  // FIX: phone ma header/nav bar nabhako screen haru ma toast seedhai
-  // status bar / notch mathi ghusdo thiyo. insets.top thapera tesle
-  // safe area (status bar/notch) tala matra deखिne, jasari header
-  // bhako screen ma dekhincha ustai.
+ // Push the toast below the status bar/notch on every device
+
   const insets = useSafeAreaInsets();
 
   const [visible, setVisible] = useState(false);
