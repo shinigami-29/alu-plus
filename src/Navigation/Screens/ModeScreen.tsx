@@ -12,6 +12,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth } from '../../context/AuthContext';
 import { useGameLogic } from '../GameLogicContext';
+import Toast from '../../components/Toast/Toast'; 
 import {
   Trophy,
   Mail,
@@ -25,135 +26,14 @@ import {
 import Layout from '../../components/AppLayout/Layout';
 import GradientCard from '../../components/GradientCard/GradientCard';
 import SectionTitle from '../../components/SectionTitle/SectionTitle';
+import InviteToast from '../../components/Toast/InviteToast'
+
 
 type Props = { navigation: NativeStackNavigationProp<any> };
 
-// A 10-second banner shown for both a new game invite AND a friend request
-function InviteToast({
-  invitations,
-  friendRequests,
-  navigation,
-}: {
-  invitations: { from: string; status: string; fromAvatarId: string | null }[];
-  friendRequests: { from: string; status: string; fromAvatarId: string | null }[];
-  navigation: NativeStackNavigationProp<any>;
-}) {
-  const {
-    acceptInvitation,
-    rejectInvitation,
-    acceptFriendRequest,
-    rejectFriendRequest,
-  } = useGameLogic();
-
- // Push the toast below the status bar/notch on every device
-
-  const insets = useSafeAreaInsets();
-
-  const [visible, setVisible] = useState(false);
-  const [message, setMessage] = useState('');
-  const [toastType, setToastType] = useState<'invite' | 'friend' | null>(null);
-  const [activeFrom, setActiveFrom] = useState<string | null>(null);
-  const [prevInviteCount, setPrevInviteCount] = useState(invitations.length);
-  const [prevFriendCount, setPrevFriendCount] = useState(friendRequests.length);
-
-  const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-
-  const startAutoDismiss = () => {
-    if (timerRef.current) clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => setVisible(false), 10000);
-  };
-
-  useEffect(() => {
-    if (invitations.length > prevInviteCount) {
-      const newest = invitations[invitations.length - 1];
-      setMessage(`${newest.from} invited you to play!`);
-      setToastType('invite');
-      setActiveFrom(newest.from);
-      setVisible(true);
-      startAutoDismiss();
-    } else if (friendRequests.length > prevFriendCount) {
-      const newest = friendRequests[friendRequests.length - 1];
-      setMessage(`${newest.from} sent you a friend request!`);
-      setToastType('friend');
-      setActiveFrom(newest.from);
-      setVisible(true);
-      startAutoDismiss();
-    }
-
-    setPrevInviteCount(invitations.length);
-    setPrevFriendCount(friendRequests.length);
-
-    return () => {
-      if (timerRef.current) clearTimeout(timerRef.current);
-    };
-  }, [invitations.length, friendRequests.length]);
-
-  if (!visible || !activeFrom) return null;
-
-  const handleViewMore = () => {
-    setVisible(false);
-    if (toastType === 'friend') {
-      // NOTE: adjust the route/params below if friend requests live on a
-      // different screen or tab than game invites in your app.
-      navigation.navigate('Invitation', { initialTab: 'requests' });
-    } else {
-      navigation.navigate('Invitation', { initialTab: 'invites' });
-    }
-  };
-
-  const handleAccept = () => {
-    if (toastType === 'friend') {
-      acceptFriendRequest(activeFrom);
-    } else {
-      acceptInvitation(activeFrom);
-    }
-    setVisible(false);
-  };
-
-  const handleDecline = () => {
-    if (toastType === 'friend') {
-      rejectFriendRequest(activeFrom);
-    } else {
-      rejectInvitation(activeFrom);
-    }
-    setVisible(false);
-  };
-
-  return (
-    <TouchableOpacity
-      
-      style={[s.inviteToast, { top: insets.top + 12 }]}
-      onPress={handleViewMore}
-      activeOpacity={0.9}
-    >
-      <Text style={s.inviteToastText}>{message}</Text>
-      <View style={s.inviteToastBtnRow}>
-        <TouchableOpacity
-          style={[s.inviteToastBtn, s.inviteToastBtnDecline]}
-          onPress={(e) => {
-            e.stopPropagation?.();
-            handleDecline();
-          }}
-        >
-          <Text style={s.inviteToastBtnDeclineText}>Decline</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={[s.inviteToastBtn, s.inviteToastBtnAccept]}
-          onPress={(e) => {
-            e.stopPropagation?.();
-            handleAccept();
-          }}
-        >
-          <Text style={s.inviteToastBtnAcceptText}>Accept</Text>
-        </TouchableOpacity>
-      </View>
-    </TouchableOpacity>
-  );
-}
-
 const ModeScreen = ({ navigation }: Props) => {
   const { user, userProfile } = useAuth();
-  const { myName, setMyName, findRandomMatch, incomingInvitations, incomingFriendRequests } = useGameLogic();
+  const { myName, setMyName, findRandomMatch, incomingInvitations, incomingFriendRequests, multiplayerError, } = useGameLogic();
   const [exitModalVisible, setExitModalVisible] = useState(false);
   const displayName =
     userProfile?.name ||
@@ -161,15 +41,19 @@ const ModeScreen = ({ navigation }: Props) => {
     user?.email?.split('@')[0] ||
     'Guest';
   const photoURL = userProfile?.photoURL || user?.photoURL || null;
+
   React.useEffect(() => {
-    if (!myName) {
-      if (userProfile?.username) {
-        setMyName(userProfile.username);
-      } else if (userProfile?.name) {
-        setMyName(userProfile.name);
-      }
-    }
-  }, [userProfile]);
+  const resolvedName =
+    userProfile?.username ||
+    userProfile?.name ||
+    user?.displayName ||
+    user?.email?.split('@')[0] ||
+    '';
+  if (resolvedName && resolvedName !== myName) {
+    setMyName(resolvedName);
+  }
+}, [userProfile]);
+
   useFocusEffect(
     useCallback(() => {
       const onBackPress = () => {
@@ -390,6 +274,7 @@ const ModeScreen = ({ navigation }: Props) => {
           </View>
         </View>
       </Modal>
+      <Toast message={multiplayerError} />
    </Layout>
   );
 };

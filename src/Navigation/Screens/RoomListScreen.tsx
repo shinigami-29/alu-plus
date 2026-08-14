@@ -28,13 +28,14 @@ type RoomItem = {
 };
 
 const RoomListScreen = ({ navigation }: Props) => {
-  const { allRooms, fetchAllRooms, joinRoomWithCode, multiplayerError } =
-    useGameLogic();
+ const { allRooms, fetchAllRooms, stopFetchingAllRooms, joinRoomWithCode, multiplayerError } =
+  useGameLogic();
   const [refreshing, setRefreshing] = useState(false);
 
-  useEffect(() => {
-    fetchAllRooms();
-  }, []);
+useEffect(() => {
+  fetchAllRooms();
+  return () => stopFetchingAllRooms();
+}, []);
 
   const handleRefresh = () => {
     setRefreshing(true);

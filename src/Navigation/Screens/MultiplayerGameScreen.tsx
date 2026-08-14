@@ -14,6 +14,7 @@ import { useGameLogic } from '../GameLogicContext';
 import { useAuth } from '../../context/AuthContext';
 import Layout from '../../components/AppLayout/Layout';
 import Avatar from '../../components/Avatar/Avatar';
+import Toast from '../../components/Toast/Toast';
 
 type Props = { navigation: NativeStackNavigationProp<any> };
 
@@ -77,6 +78,7 @@ const MultiplayerGameScreen = ({ navigation }: Props) => {
     opponentPhoto,
     opponentAvatarId,
     isMyTurn,
+    multiplayerError,
     currentPlayer,
     roomCode,
     handleMultiplayerPress,
@@ -494,6 +496,7 @@ const MultiplayerGameScreen = ({ navigation }: Props) => {
           </View>
         </Modal>
       </View>
+      <Toast message={multiplayerError} />
    </Layout>
   );
 };

@@ -12,6 +12,7 @@ import { Check, X, MailOpen, UserPlus } from 'lucide-react-native';
 import Layout from '../../components/AppLayout/Layout';
 import Avatar from '../../components/Avatar/Avatar';
 import { COLORS } from '../../theme/colors';
+import Toast from '../../components/Toast/Toast';
 
 type Props = { navigation: NativeStackNavigationProp<any> };
 type Tab = 'invites' | 'requests';
@@ -26,6 +27,7 @@ const InvitationScreen = ({ navigation }: Props) => {
     acceptFriendRequest,
     rejectFriendRequest,
     incomingFriendRequests,
+     multiplayerError,
   } = useGameLogic();
 
   const [activeTab, setActiveTab] = useState<Tab>('invites');
@@ -204,6 +206,8 @@ const InvitationScreen = ({ navigation }: Props) => {
           </>
         )}
       </View>
+
+      <Toast message={multiplayerError} />
     </Layout>
   );
 };

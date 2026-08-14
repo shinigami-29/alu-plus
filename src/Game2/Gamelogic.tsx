@@ -37,12 +37,15 @@ const GameLogic = (myAvatarId?: string | null, myPhoto?: string | null) => {
     }[]
   >([]);
 
-  // match historu reset
+  // Match history reset thresholds
   const MATCH_HISTORY_THRESHOLD = 20;
   const ONE_WEEK_MS = 7 * 24 * 60 * 60 * 1000;
   const TWO_WEEKS_MS = 14 * 24 * 60 * 60 * 1000;
 
   const listenedCodeRef = useRef<string | null>(null);
+  const opponentLeftTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const roomHasLoadedRef = useRef(false);
+
   const recordedResultKeyRef = useRef<string | null>(null);
   const activeSessionKeyRef = useRef<string | null>(null);
   const sessionStatsRef = useRef<{
@@ -52,7 +55,7 @@ const GameLogic = (myAvatarId?: string | null, myPhoto?: string | null) => {
   }>({ wins: 0, losses: 0, draws: 0 });
   const isLeavingRef = useRef(false);
 
-  // ROOM LIST (LOBBY) — waiting + playing both status
+  // Room list (lobby) — includes both "waiting" and "playing" rooms
   const [allRooms, setAllRooms] = useState<
     {
       roomCode: string;
@@ -86,7 +89,7 @@ const GameLogic = (myAvatarId?: string | null, myPhoto?: string | null) => {
   >([]);
 
   // myRoleRef mirrors myRole so Firebase listeners always read the latest
-// value, even in a stale closure. setMyRole() keeps both in sync.
+  // value, even inside a stale closure. setMyRole() keeps both in sync.
   const [myRole, setMyRoleState] = useState<'X' | 'O' | null>(null);
   const myRoleRef = useRef<'X' | 'O' | null>(null);
   const setMyRole = (role: 'X' | 'O' | null) => {
@@ -103,7 +106,7 @@ const GameLogic = (myAvatarId?: string | null, myPhoto?: string | null) => {
   const [gameStarted, setGameStarted] = useState(false);
   const [multiplayerError, setMultiplayerError] = useState('');
 
-  // REMATCH tracking — if both players agree to rematch then only board reset
+  // Rematch tracking — board only resets once both players have agreed
   const [myRematchRequested, setMyRematchRequested] = useState(false);
   const [opponentRematchRequested, setOpponentRematchRequested] =
     useState(false);
@@ -121,7 +124,14 @@ const GameLogic = (myAvatarId?: string | null, myPhoto?: string | null) => {
   const sentInvListenerRef = useRef<FirebaseDatabaseTypes.Reference | null>(
     null,
   );
-  // MATCH HISTORY (session-based)
+
+  // Raw invitation snapshot cache — used by the periodic expiry sweep below,
+  // since the on('value') listener only fires on a DB write, not on the
+  // passage of time.
+  const rawInvitationsRef = useRef<any>(null);
+  const INVITE_TTL_MS = 60 * 1000; // invitations auto-expire after 1 minute
+
+  // Match history (session-based)
   const [matchHistory, setMatchHistory] = useState<
     {
       opponent: string;
@@ -134,24 +144,28 @@ const GameLogic = (myAvatarId?: string | null, myPhoto?: string | null) => {
     }[]
   >([]);
 
-  // RANDOM MATCH state
+  // Random match state
   const [randomMatchStatus, setRandomMatchStatus] = useState<
     'idle' | 'searching' | 'found'
   >('idle');
   const randomMatchRef = useRef<FirebaseDatabaseTypes.Reference | null>(null);
 
   const roomRef = useRef<FirebaseDatabaseTypes.Reference | null>(null);
+  const roomsListenerRef = useRef<FirebaseDatabaseTypes.Reference | null>(null);
+  const creatingRoomRef = useRef(false);
+  const ROOM_WAITING_TTL_MS = 5 * 60 * 1000;
 
   const hostUidRef = useRef<string | null>(null);
   const guestUidRef = useRef<string | null>(null);
 
-  // render, so session records couldn't be updated — each move created a
-  // new matchHistory record, causing duplicates)
+  // Tracks the Firebase ref for the current session's match-history record,
+  // so subsequent moves update it instead of creating duplicates.
   const currentSessionRecordRef =
     useRef<FirebaseDatabaseTypes.Reference | null>(null);
 
   const lastLocalFirstRef = useRef<Player>('X');
-  // USERNAME SEARCH state
+
+  // Username search state
   const [searchResults, setSearchResults] = useState<
     {
       uid: string;
@@ -161,6 +175,7 @@ const GameLogic = (myAvatarId?: string | null, myPhoto?: string | null) => {
     }[]
   >([]);
 
+  // Converts Firebase's array-or-object board shape into a fixed 9-cell array
   const normalizeBoard = (data: any): BoxCell[] => {
     const fixed: BoxCell[] = Array(9).fill(null);
 
@@ -199,6 +214,7 @@ const GameLogic = (myAvatarId?: string | null, myPhoto?: string | null) => {
     return null;
   };
 
+  // Local (offline / same-device) move handler
   const handlePress = (index: number): void => {
     if (board[index] || winner) return;
 
@@ -213,11 +229,11 @@ const GameLogic = (myAvatarId?: string | null, myPhoto?: string | null) => {
     setCurrentPlayer(currentPlayer => (currentPlayer === 'X' ? 'O' : 'X'));
   };
 
+  // Resets the local board, alternating who goes first each round
   const resetGame = () => {
     const nextFirst: Player = lastLocalFirstRef.current === 'X' ? 'O' : 'X';
     lastLocalFirstRef.current = nextFirst;
     setBoard(Array(9).fill(null));
-    // setCurrentPlayer('X');
     setCurrentPlayer(nextFirst);
     setWinner(null);
   };
@@ -231,17 +247,21 @@ const GameLogic = (myAvatarId?: string | null, myPhoto?: string | null) => {
       .catch(err => console.log('Rematch request FAILED:', err.message));
   };
 
-  // CREATE ROOM
+  // Creates a new room with a random 6-digit code, retrying on collision
   const generateRoomCode = (): void => {
     if (!myName || myName === 'undefined' || myName.trim() === '') return;
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
 
+    if (roomRef.current || creatingRoomRef.current) return;
+    creatingRoomRef.current = true;
+
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
     const ref = database().ref(`/rooms/${code}`);
 
     ref
       .once('value')
       .then(snapshot => {
         if (snapshot.exists()) {
+          creatingRoomRef.current = false;
           generateRoomCode();
           return;
         }
@@ -264,10 +284,9 @@ const GameLogic = (myAvatarId?: string | null, myPhoto?: string | null) => {
             winner: null,
             isDraw: false,
             status: 'waiting',
+            createdAt: database.ServerValue.TIMESTAMP,
           })
           .then(() => {
-            // Auto-remove the room if the host disconnects — otherwise it stays
-// stuck as a zombie room in RoomListScreen.
             ref.onDisconnect().remove();
 
             setRoomCode(code);
@@ -279,12 +298,20 @@ const GameLogic = (myAvatarId?: string | null, myPhoto?: string | null) => {
             listenToRoom(code);
 
             setScreen('waiting');
+          })
+          .catch(err => {
+            creatingRoomRef.current = false;
+            roomRef.current = null;
+            console.log(err);
           });
       })
-      .catch(err => console.log(err));
+      .catch(err => {
+        creatingRoomRef.current = false;
+        console.log(err);
+      });
   };
 
-  // JOIN ROOM
+  // Joins a room using the code currently held in joinCode state
   const joinRoom = (): void => {
     if (!myName || joinCode.length !== 6) return;
     setMultiplayerError('');
@@ -363,7 +390,7 @@ const GameLogic = (myAvatarId?: string | null, myPhoto?: string | null) => {
     });
   };
 
-  // JOIN ROOM BY EXPLICIT CODE
+  // Same as joinRoom, but takes an explicit code (e.g. from a deep link)
   const joinRoomWithCode = (code: string): void => {
     if (!myName || !code) return;
     setMultiplayerError('');
@@ -445,73 +472,98 @@ const GameLogic = (myAvatarId?: string | null, myPhoto?: string | null) => {
       .catch(err => console.log(err));
   };
 
-  // ROOM LIST (LOBBY)
+  // Listens to /rooms and builds the public lobby list, sweeping out
+  // ghost/duplicate/stale "waiting" rooms as it goes
   const fetchAllRooms = () => {
-    database()
-      .ref('/rooms')
-      .once('value')
-      .then(snapshot => {
-        const data = snapshot.val();
-        if (!data) {
-          setAllRooms([]);
+    if (roomsListenerRef.current) {
+      roomsListenerRef.current.off();
+    }
+    const ref = database().ref('/rooms');
+    roomsListenerRef.current = ref;
+
+    ref.on('value', snapshot => {
+      const data = snapshot.val();
+      if (!data) {
+        setAllRooms([]);
+        return;
+      }
+
+      const now = Date.now();
+      const cleanupUpdates: Record<string, null> = {};
+      const seenWaitingHosts = new Map<string, string>();
+      const codes = Object.keys(data);
+
+      codes.forEach(code => {
+        const room = data[code];
+
+        if (!room?.host) {
+          cleanupUpdates[`/rooms/${code}`] = null;
           return;
         }
 
-        const cleanupUpdates: Record<string, null> = {};
-
-        const list = Object.keys(data)
-          .filter(code => {
-            const room = data[code];
-            // Corrupt/ghost room — missing host means invalid data. Queue it for
-            // deletion and exclude it from the results.
-            if (!room?.host) {
-              cleanupUpdates[`/rooms/${code}`] = null;
-              return false;
-            }
-            return true;
-          })
-          .map(code => ({
-            roomCode: code,
-            roomName: data[code].roomName ?? `${data[code].host}'s Room`,
-            host: data[code].host,
-            hostPhoto: data[code].hostPhoto ?? null,
-            hostAvatarId: data[code].hostAvatarId ?? null,
-            guest: data[code].guest ?? null,
-            guestPhoto: data[code].guestPhoto ?? null,
-            guestAvatarId: data[code].guestAvatarId ?? null,
-            status: data[code].status,
-          }))
-          .filter(
-            room =>
-              (room.status === 'waiting' || room.status === 'playing') &&
-              room.host !== myName &&
-              room.guest !== myName,
-          );
-
-        list.sort((a, b) => {
-          if (a.status === b.status) return 0;
-          return a.status === 'waiting' ? -1 : 1;
-        });
-
-        setAllRooms(list);
-        if (Object.keys(cleanupUpdates).length > 0) {
-          database()
-            .ref()
-            .update(cleanupUpdates)
-            .then(() =>
-              console.log(
-                'Cleaned up ghost rooms:',
-                Object.keys(cleanupUpdates),
-              ),
-            )
-            .catch(err =>
-              console.log('Ghost room cleanup FAILED:', err.message),
-            );
+        if (room.status === 'waiting' && !room.guest) {
+          const created = room.createdAt ?? 0;
+          const isStale = now - created > ROOM_WAITING_TTL_MS;
+          if (isStale) {
+            cleanupUpdates[`/rooms/${code}`] = null;
+            return;
+          }
+          if (seenWaitingHosts.has(room.host)) {
+            cleanupUpdates[`/rooms/${code}`] = null;
+            return;
+          }
+          seenWaitingHosts.set(room.host, code);
         }
       });
+
+      const list = codes
+        .filter(code => cleanupUpdates[`/rooms/${code}`] === undefined)
+        .map(code => ({
+          roomCode: code,
+          roomName: data[code].roomName ?? `${data[code].host}'s Room`,
+          host: data[code].host,
+          hostPhoto: data[code].hostPhoto ?? null,
+          hostAvatarId: data[code].hostAvatarId ?? null,
+          guest: data[code].guest ?? null,
+          guestPhoto: data[code].guestPhoto ?? null,
+          guestAvatarId: data[code].guestAvatarId ?? null,
+          status: data[code].status,
+        }))
+        .filter(
+          room =>
+            (room.status === 'waiting' || room.status === 'playing') &&
+            room.host !== myName &&
+            room.guest !== myName,
+        );
+
+      list.sort((a, b) => {
+        if (a.status === b.status) return 0;
+        return a.status === 'waiting' ? -1 : 1;
+      });
+
+      setAllRooms(list);
+
+      if (Object.keys(cleanupUpdates).length > 0) {
+        database()
+          .ref()
+          .update(cleanupUpdates)
+          .catch(err => console.log('Ghost room cleanup FAILED:', err.message));
+      }
+    });
   };
 
-  // FIREBASE LISTENER
+  const stopFetchingAllRooms = () => {
+    if (roomsListenerRef.current) {
+      roomsListenerRef.current.off();
+      roomsListenerRef.current = null;
+    }
+  };
+
+  const guestWasPresentRef = useRef(false);
+  const lastRoomDataRef = useRef<any>(null);
+
+  // Main Firebase room listener — syncs board state and detects when the
+  // opponent disconnects or leaves
   const listenToRoom = (code: string) => {
     if (listenedCodeRef.current === code && roomRef.current) {
       console.log('Skipping duplicate listenToRoom for', code);
@@ -519,6 +571,9 @@ const GameLogic = (myAvatarId?: string | null, myPhoto?: string | null) => {
     }
 
     listenedCodeRef.current = code;
+    roomHasLoadedRef.current = false;
+    guestWasPresentRef.current = false;
+    lastRoomDataRef.current = null;
 
     if (!roomRef.current) {
       roomRef.current = database().ref(`/rooms/${code}`);
@@ -526,10 +581,79 @@ const GameLogic = (myAvatarId?: string | null, myPhoto?: string | null) => {
 
     roomRef.current.off();
 
+    // Cleans up local + remote room state after the opponent leaves or
+    // disconnects, then returns to the mode-select screen after a delay
+    // (giving the UI time to show the "opponent left" message first)
+    const handleOpponentLeft = (message: string, alsoRemoveRoom: boolean) => {
+      if (alsoRemoveRoom && roomRef.current) {
+        roomRef.current.remove().catch(() => {});
+      }
+
+      if (roomRef.current) {
+        roomRef.current.off();
+        roomRef.current.onDisconnect().cancel().catch(() => {});
+      }
+      roomRef.current = null;
+      listenedCodeRef.current = null;
+      recordedResultKeyRef.current = null;
+      activeSessionKeyRef.current = null;
+      guestWasPresentRef.current = false;
+      lastRoomDataRef.current = null;
+
+      setInGameStatus(false);
+      setMultiplayerError(message);
+
+      opponentLeftTimeoutRef.current = setTimeout(() => {
+        setMyRole(null);
+        setOpponentName('');
+        setOpponentPhoto(null);
+        setOpponentAvatarId(null);
+        setRoomCode('');
+        setGameStarted(false);
+        setMyRematchRequested(false);
+        setOpponentRematchRequested(false);
+        resetGame();
+        setScreen('Mode');
+      }, 60000);
+    };
+
     roomRef.current.on('value', snap => {
       const data = snap.val();
 
-      if (!data) return;
+      if (!data) {
+        if (!roomHasLoadedRef.current) {
+          console.log('listenToRoom: waiting for initial data,', code);
+          return;
+        }
+
+        const message =
+          lastRoomDataRef.current?.hostLeaveReason === 'left'
+            ? 'Opponent has left the game.'
+            : 'Connection lost.';
+        handleOpponentLeft(message, false);
+        return;
+      }
+
+      roomHasLoadedRef.current = true;
+      lastRoomDataRef.current = data;
+
+      const isHost = data.host === myName;
+      if (isHost) {
+        if (data.guest) {
+          guestWasPresentRef.current = true;
+        } else if (
+          guestWasPresentRef.current &&
+          data.status === 'waiting' &&
+          gameStarted
+        ) {
+          const message =
+            data.guestLeaveReason === 'left'
+              ? 'Opponent has left the game.'
+              : 'Connection lost.';
+          handleOpponentLeft(message, true);
+          return;
+        }
+      }
 
       setBoard(normalizeBoard(data.board));
       hostUidRef.current = data.hostUid ?? null;
@@ -559,6 +683,7 @@ const GameLogic = (myAvatarId?: string | null, myPhoto?: string | null) => {
       if (data.status === 'playing') {
         setGameStarted(true);
         setScreen('multiplayerGame');
+        setInGameStatus(true);
       }
 
       const opponent = data.host === myName ? data.guest : data.host;
@@ -567,13 +692,14 @@ const GameLogic = (myAvatarId?: string | null, myPhoto?: string | null) => {
       const oppPhoto = data.host === myName ? data.guestPhoto : data.hostPhoto;
       setOpponentPhoto(oppPhoto ?? null);
 
-      // Track the opponent's avatarId — whichever of host/guest they are
       const oppAvatarId =
         data.host === myName ? data.guestAvatarId : data.hostAvatarId;
       setOpponentAvatarId(oppAvatarId ?? null);
 
       const currentRole = myRoleRef.current;
 
+      // Once both sides have requested a rematch, host resets the board
+      // and flips who goes first
       if (data.rematchX && data.rematchO && currentRole === 'X') {
         const prevFirst = data.lastFirst ?? 'X';
         const newFirst: Player = prevFirst === 'X' ? 'O' : 'X';
@@ -668,8 +794,24 @@ const GameLogic = (myAvatarId?: string | null, myPhoto?: string | null) => {
     return cleanup;
   }, [myName]);
 
-  // setuooresence
+  // Periodic sweep for expired invitations. Firebase's on('value') listener
+  // only fires when the DB is written to — if nobody touches the invite
+  // (sender doesn't cancel, receiver doesn't act), no new event will ever
+  // arrive to signal that the TTL has passed. So we re-check locally on an
+  // interval instead of relying purely on DB events.
+  useEffect(() => {
+    if (!myName) return;
+    const id = setInterval(applyInvitationFilter, 15000);
+    return () => clearInterval(id);
+  }, [myName]);
 
+  useEffect(() => {
+    if (!multiplayerError) return;
+    const id = setTimeout(() => setMultiplayerError(''), 3000);
+    return () => clearTimeout(id);
+  }, [multiplayerError]);
+
+  // Tracks online/offline presence for the current user via .info/connected
   const setupPresence = () => {
     if (!myName) return undefined;
 
@@ -712,6 +854,7 @@ const GameLogic = (myAvatarId?: string | null, myPhoto?: string | null) => {
     };
   };
 
+  // Subscribes to presence for a given list of names (friends + recent opponents)
   const listenToPresence = (names: string[]) => {
     Object.keys(presenceRefsRef.current).forEach(name => {
       if (!names.includes(name)) {
@@ -735,7 +878,19 @@ const GameLogic = (myAvatarId?: string | null, myPhoto?: string | null) => {
     });
   };
 
-  // LEAVE
+  // Marks this player as "in a game" (or not) in their presence record.
+  // Used by acceptInvitation / random-match to avoid matching someone
+  // who's already playing.
+  const setInGameStatus = (inGame: boolean) => {
+    if (!myName) return;
+    database()
+      .ref(`/status/${myName}`)
+      .update({ inGame })
+      .catch(err => console.log('setInGameStatus FAILED:', err.message));
+  };
+
+  // Leaves the current room: host deletes the room, guest resets it back
+  // to "waiting" so the room can be rejoined by someone else
   const leaveRoom = () => {
     console.log('leaveRoom() called, roomRef exists:', !!roomRef.current);
 
@@ -762,13 +917,18 @@ const GameLogic = (myAvatarId?: string | null, myPhoto?: string | null) => {
     }
 
     const currentRef = roomRef.current;
+    const iAmHost = myRole === 'X';
+
     currentRef
       .onDisconnect()
       .cancel()
       .then(() => {
-        if (myRole === 'X') {
-          // Host: delete the whole room
-          return currentRef.remove();
+        if (iAmHost) {
+          // Mark "left on purpose" first, then remove the room — this lets
+          // the guest show "Opponent left" instead of "Connection lost"
+          return currentRef
+            .update({ hostLeaveReason: 'left' })
+            .then(() => currentRef.remove());
         } else {
           return currentRef.update({
             guest: null,
@@ -807,6 +967,8 @@ const GameLogic = (myAvatarId?: string | null, myPhoto?: string | null) => {
     setOpponentRematchRequested(false);
 
     resetGame();
+    setInGameStatus(false);
+    creatingRoomRef.current = false;
 
     setScreen('Mode');
 
@@ -815,6 +977,7 @@ const GameLogic = (myAvatarId?: string | null, myPhoto?: string | null) => {
 
   const isDraw = board.every(c => c !== null) && !winner;
 
+  // Increments the winner's weekly leaderboard win count (transaction-safe)
   const updateLeaderboard = (winnerName: string) => {
     const uid = auth().currentUser?.uid ?? null;
     if (!uid) return;
@@ -836,6 +999,8 @@ const GameLogic = (myAvatarId?: string | null, myPhoto?: string | null) => {
     });
   };
 
+  // Migrates a username across all DB locations (recentOpponents,
+  // gameFriends, presence status, match history) after a rename
   const renameUsernameEverywhere = (oldName: string, newName: string) => {
     if (!oldName || !newName || oldName === newName) return;
 
@@ -951,7 +1116,13 @@ const GameLogic = (myAvatarId?: string | null, myPhoto?: string | null) => {
       );
   };
 
-  const updateLeaderboardName = (newName: string) => {
+  // Updates the display name (and optionally photo/avatar) on this user's
+  // current-week leaderboard entry, if one exists
+  const updateLeaderboardName = (
+    newName: string,
+    overrideAvatarId?: string | null,
+    overridePhoto?: string | null,
+  ) => {
     const uid = auth().currentUser?.uid ?? null;
     if (!uid) return;
     const weekKey = getCurrentWeekKey();
@@ -961,8 +1132,12 @@ const GameLogic = (myAvatarId?: string | null, myPhoto?: string | null) => {
         lbRef
           .update({
             name: newName,
-            avatarId: myAvatarId ?? null,
-            photo: myPhoto ?? null,
+            avatarId:
+              overrideAvatarId !== undefined
+                ? overrideAvatarId
+                : myAvatarId ?? null,
+            photo:
+              overridePhoto !== undefined ? overridePhoto : myPhoto ?? null,
           })
           .catch(err =>
             console.log('Leaderboard name update FAILED:', err.message),
@@ -971,7 +1146,9 @@ const GameLogic = (myAvatarId?: string | null, myPhoto?: string | null) => {
     });
   };
 
-  // MATCH HISTORY helpers
+  // ============ MATCH HISTORY ============
+
+  // Starts (or resumes) a session-stats tracker tied to a room code
   const startNewSession = (code: string) => {
     if (activeSessionKeyRef.current === code) {
       console.log('Session already active for', code, '— skipping reset');
@@ -980,7 +1157,7 @@ const GameLogic = (myAvatarId?: string | null, myPhoto?: string | null) => {
     activeSessionKeyRef.current = code;
     sessionStatsRef.current = { wins: 0, losses: 0, draws: 0 };
     recordedResultKeyRef.current = null;
-    currentSessionRecordRef.current = null; //👈
+    currentSessionRecordRef.current = null;
   };
 
   const recordGameResult = (result: 'win' | 'loss' | 'draw') => {
@@ -990,6 +1167,8 @@ const GameLogic = (myAvatarId?: string | null, myPhoto?: string | null) => {
     else sessionStatsRef.current.draws += 1;
   };
 
+  // Persists the current session's win/loss/draw tally to match history,
+  // resetting the history cycle once it gets old/large enough
   const saveSessionMatchRecord = (opponent: string, code: string) => {
     if (!myName) return;
     const stats = sessionStatsRef.current;
@@ -1079,6 +1258,8 @@ const GameLogic = (myAvatarId?: string | null, myPhoto?: string | null) => {
       .catch(err => console.log('fetchMatchHistory error:', err.message));
   };
 
+  // Returns the current ISO week key (e.g. "2026-W33") used to bucket
+  // the weekly leaderboard
   const getCurrentWeekKey = (): string => {
     const now = new Date();
     const target = new Date(now.valueOf());
@@ -1125,17 +1306,16 @@ const GameLogic = (myAvatarId?: string | null, myPhoto?: string | null) => {
       });
   };
 
-  const sendInvitation = (toName: string) => {
-    console.log('=== sendInvitation called ===');
-    console.log('myName:', JSON.stringify(myName));
-    console.log('toName:', JSON.stringify(toName));
+  // ============ GAME INVITATIONS ============
 
-    if (!myName || !toName) {
-      console.log('BLOCKED: myName or toName is empty');
-      return;
-    }
-    if (toName === myName) {
-      console.log('BLOCKED: same name');
+  const sendInvitation = (toName: string) => {
+    if (!myName || !toName) return;
+    if (toName === myName) return;
+
+    // Don't send an invite to someone we already know is offline —
+    // avoids a guaranteed-dead invite sitting in their inbox.
+    if (onlineStatus[toName] === false) {
+      setMultiplayerError(`${toName} is offline right now.`);
       return;
     }
 
@@ -1157,70 +1337,115 @@ const GameLogic = (myAvatarId?: string | null, myPhoto?: string | null) => {
       });
   };
 
+  // Accepts an invitation using a transaction to atomically claim the
+  // inviter's presence slot, preventing two people from accepting at once
   const acceptInvitation = (fromName: string) => {
     if (!myName) return;
 
-    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const statusRef = database().ref(`/status/${fromName}`);
 
-    database()
-      .ref(`/invitations/${myName}/${fromName}`)
-      .once('value')
-      .then(snap => {
-        const invitationData = snap.val();
-        const hostUid = invitationData?.fromUid ?? null;
-        const hostPhoto = invitationData?.fromPhoto ?? null;
-        const hostAvatarId = invitationData?.fromAvatarId ?? null;
+    statusRef
+      .transaction(current => {
+        if (!current || current.state !== 'online') {
+          return; // abort — inviter is offline
+        }
+        if (current.inGame) {
+          return; // abort — already claimed by someone else / already busy
+        }
+        return {
+          ...current,
+          inGame: true,
+        };
+      })
+      .then(result => {
+        if (!result.committed) {
+          // Transaction aborted — figure out whether it was offline or
+          // busy, just for the error message
+          statusRef.once('value').then(snap => {
+            const s = snap.val();
+            const isOnline = s?.state === 'online';
+            setMultiplayerError(
+              !isOnline
+                ? `${fromName} is offline right now.`
+                : `${fromName} is already playing.`,
+            );
+          });
+          database().ref(`/invitations/${myName}/${fromName}`).remove();
+          database().ref(`/sentInvitations/${fromName}/${myName}`).remove();
+          return;
+        }
 
-        const updates: Record<string, any> = {};
-        updates[`/invitations/${myName}/${fromName}/status`] = 'accepted';
-        updates[`/sentInvitations/${fromName}/${myName}/status`] = 'accepted';
-        updates[`/sentInvitations/${fromName}/${myName}/roomCode`] = code;
-        updates[`/sentInvitations/${fromName}/${myName}/guestPhoto`] =
-          myPhoto ?? null;
-        updates[`/sentInvitations/${fromName}/${myName}/guestAvatarId`] =
-          myAvatarId ?? null;
+        // Claimed atomically — now safely create the room
+        const code = Math.floor(100000 + Math.random() * 900000).toString();
 
         database()
-          .ref()
-          .update(updates)
-          .then(() => {
-            const ref = database().ref(`/rooms/${code}`);
-            roomRef.current = ref;
-            ref
-              .set({
-                roomName: `${fromName}'s Room`,
-                host: fromName,
-                hostUid: hostUid,
-                hostPhoto: hostPhoto,
-                hostAvatarId: hostAvatarId,
-                guest: myName,
-                guestUid: auth().currentUser?.uid ?? null,
-                guestPhoto: myPhoto ?? null,
-                guestAvatarId: myAvatarId ?? null,
-                board: Array(9).fill(null),
-                currentTurn: 'X',
-                lastFirst: 'X',
-                winner: null,
-                isDraw: false,
-                status: 'playing',
-              })
-              .then(() => {
-                // Yo (guest/accepter) side bata disconnect huda room hataune
-                ref.onDisconnect().remove();
+          .ref(`/invitations/${myName}/${fromName}`)
+          .once('value')
+          .then(snap => {
+            const invitationData = snap.val();
+            const hostUid = invitationData?.fromUid ?? null;
+            const hostPhoto = invitationData?.fromPhoto ?? null;
+            const hostAvatarId = invitationData?.fromAvatarId ?? null;
 
-                setRoomCode(code);
-                setMyRole('O');
-                setOpponentName(fromName);
-                setOpponentPhoto(hostPhoto);
-                setOpponentAvatarId(hostAvatarId);
-                setGameStarted(true);
-                startNewSession(code);
-                listenToRoom(code);
-                setScreen('multiplayerGame');
+            const updates: Record<string, any> = {};
+            updates[`/invitations/${myName}/${fromName}/status`] = 'accepted';
+            updates[`/sentInvitations/${fromName}/${myName}/status`] =
+              'accepted';
+            updates[`/sentInvitations/${fromName}/${myName}/roomCode`] = code;
+            updates[`/sentInvitations/${fromName}/${myName}/guestPhoto`] =
+              myPhoto ?? null;
+            updates[`/sentInvitations/${fromName}/${myName}/guestAvatarId`] =
+              myAvatarId ?? null;
+
+            database()
+              .ref()
+              .update(updates)
+              .then(() => {
+                const ref = database().ref(`/rooms/${code}`);
+                roomRef.current = ref;
+                ref
+                  .set({
+                    roomName: `${fromName}'s Room`,
+                    host: fromName,
+                    hostUid,
+                    hostPhoto,
+                    hostAvatarId,
+                    guest: myName,
+                    guestUid: auth().currentUser?.uid ?? null,
+                    guestPhoto: myPhoto ?? null,
+                    guestAvatarId: myAvatarId ?? null,
+                    board: Array(9).fill(null),
+                    currentTurn: 'X',
+                    lastFirst: 'X',
+                    winner: null,
+                    isDraw: false,
+                    status: 'playing',
+                  })
+                  .then(() => {
+                    ref.onDisconnect().remove();
+                    setRoomCode(code);
+                    setMyRole('O');
+                    setOpponentName(fromName);
+                    setOpponentPhoto(hostPhoto);
+                    setOpponentAvatarId(hostAvatarId);
+                    setGameStarted(true);
+                    startNewSession(code);
+                    listenToRoom(code);
+                    setScreen('multiplayerGame');
+                  })
+                  .catch(err => {
+                    console.log('Room creation FAILED:', err.message);
+                    // Room creation failed — revert the claimed inGame flag,
+                    // otherwise fromName stays stuck as "busy" forever
+                    statusRef.update({ inGame: false }).catch(() => {});
+                  });
               });
           });
       })
-      .catch(err => console.log('Accept invitation error:', err));
+      .catch(err => {
+        console.log('acceptInvitation transaction FAILED:', err);
+        setMultiplayerError('Something went wrong. Please try again.');
+      });
   };
 
   const rejectInvitation = (fromName: string) => {
@@ -1248,6 +1473,7 @@ const GameLogic = (myAvatarId?: string | null, myPhoto?: string | null) => {
         setRecentOpponents(list);
       });
   };
+
   // ============ FRIEND REQUEST FLOW ============
 
   const sendFriendRequest = (toName: string) => {
@@ -1281,7 +1507,7 @@ const GameLogic = (myAvatarId?: string | null, myPhoto?: string | null) => {
         const myUid = auth().currentUser?.uid ?? null;
         const updates: Record<string, any> = {};
 
-        // On this side, "fromName" just became my friend — their avatarId is fromAvatarId
+        // Add each other symmetrically to both users' friend lists
         updates[`/gameFriends/${myName}/${fromName}`] = {
           name: fromName,
           uid: fromUid,
@@ -1290,7 +1516,6 @@ const GameLogic = (myAvatarId?: string | null, myPhoto?: string | null) => {
           timestamp: database.ServerValue.TIMESTAMP,
         };
 
-        // On their side, "myName" became their friend — my avatarId is myAvatarId
         updates[`/gameFriends/${fromName}/${myName}`] = {
           name: myName,
           uid: myUid,
@@ -1346,11 +1571,14 @@ const GameLogic = (myAvatarId?: string | null, myPhoto?: string | null) => {
           status: data[from].status,
           fromAvatarId: data[from]?.fromAvatarId ?? null,
           fromPhoto: data[from]?.fromPhoto ?? null,
+          timestamp: data[from]?.timestamp ?? 0,
         }));
       setIncomingFriendRequests(list.filter(i => i.status === 'pending'));
     });
   };
 
+  // Fetches the friend list, refreshing each friend's live name/photo/avatar
+  // from their Firestore user doc (falls back to the cached values)
   const fetchGameFriends = () => {
     if (!myName) return;
     database()
@@ -1381,8 +1609,12 @@ const GameLogic = (myAvatarId?: string | null, myPhoto?: string | null) => {
             .get()
             .then(doc => {
               const liveData = doc.data();
+              const resolvedName =
+                (liveData?.username && liveData.username.trim()) ||
+                (liveData?.name && liveData.name.trim()) ||
+                displayName;
               return {
-                name: liveData?.username ?? displayName,
+                name: resolvedName,
                 uid,
                 photo: liveData?.photoURL ?? photo,
                 avatarId: liveData?.avatarId ?? avatarId,
@@ -1417,29 +1649,67 @@ const GameLogic = (myAvatarId?: string | null, myPhoto?: string | null) => {
       .catch(err => console.log('Remove friend error:', err));
   };
 
+  // Filters the raw invitations snapshot down to non-expired, pending
+  // entries. Also sweeps out anything older than INVITE_TTL_MS from both
+  // sides (/invitations and /sentInvitations) so a stale invite doesn't
+  // linger forever, even across app restarts.
+  const applyInvitationFilter = () => {
+    const data = rawInvitationsRef.current;
+    if (!myName) return;
+    if (!data) {
+      setIncomingInvitations([]);
+      return;
+    }
+
+    const now = Date.now();
+    const staleUpdates: Record<string, null> = {};
+
+    const list = Object.keys(data)
+      .filter(from => from !== myName)
+      .map(from => ({
+        from,
+        status: data[from].status,
+        fromAvatarId: data[from]?.fromAvatarId ?? null,
+        fromPhoto: data[from]?.fromPhoto ?? null,
+        timestamp: data[from]?.timestamp ?? 0,
+      }))
+      .filter(inv => {
+        if (inv.status !== 'pending') return false;
+        const isExpired =
+          inv.timestamp && now - inv.timestamp > INVITE_TTL_MS;
+        if (isExpired) {
+          staleUpdates[`/invitations/${myName}/${inv.from}`] = null;
+          staleUpdates[`/sentInvitations/${inv.from}/${myName}`] = null;
+          return false;
+        }
+        return true;
+      });
+
+    setIncomingInvitations(list);
+
+    if (Object.keys(staleUpdates).length > 0) {
+      database()
+        .ref()
+        .update(staleUpdates)
+        .catch(err =>
+          console.log('Stale invite cleanup FAILED:', err.message),
+        );
+    }
+  };
+
   const listenToInvitations = () => {
     if (!myName) return;
     if (invitationsListenerRef.current) invitationsListenerRef.current.off();
     const ref = database().ref(`/invitations/${myName}`);
     invitationsListenerRef.current = ref;
     ref.on('value', snap => {
-      const data = snap.val();
-      if (!data) {
-        setIncomingInvitations([]);
-        return;
-      }
-      const list = Object.keys(data)
-        .filter(from => from !== myName)
-        .map(from => ({
-          from,
-          status: data[from].status,
-          fromAvatarId: data[from]?.fromAvatarId ?? null,
-          fromPhoto: data[from]?.fromPhoto ?? null,
-        }));
-      setIncomingInvitations(list.filter(i => i.status === 'pending'));
+      rawInvitationsRef.current = snap.val();
+      applyInvitationFilter();
     });
   };
 
+  // Watches invitations this user sent out; when one gets accepted, joins
+  // the resulting room as host
   const listenToSentInvitations = () => {
     if (!myName) return;
     if (sentInvListenerRef.current) sentInvListenerRef.current.off();
@@ -1452,10 +1722,19 @@ const GameLogic = (myAvatarId?: string | null, myPhoto?: string | null) => {
       Object.keys(data).forEach(toName => {
         const info = data[toName];
         if (info.status === 'accepted' && info.roomCode) {
+          if (roomRef.current && roomCode && info.roomCode !== roomCode) {
+            console.log(
+              'Ignoring stray accepted invitation, already in a room:',
+              toName,
+            );
+            database().ref(`/sentInvitations/${myName}/${toName}`).remove();
+            database().ref(`/invitations/${toName}/${myName}`).remove();
+            database().ref(`/rooms/${info.roomCode}`).remove().catch(() => {});
+            return;
+          }
+
           roomRef.current = database().ref(`/rooms/${info.roomCode}`);
-
           roomRef.current.onDisconnect().remove();
-
           setRoomCode(info.roomCode);
           setMyRole('X');
           setOpponentName(toName);
@@ -1473,7 +1752,7 @@ const GameLogic = (myAvatarId?: string | null, myPhoto?: string | null) => {
     });
   };
 
-  // updatePlayerStats — also tracks 'draw' (Firestore users/{uid})
+  // Increments a win/loss/draw counter on the user's Firestore stats doc
   const updatePlayerStats = (
     uid: string | null,
     result: 'win' | 'loss' | 'draw',
@@ -1493,8 +1772,7 @@ const GameLogic = (myAvatarId?: string | null, myPhoto?: string | null) => {
       .catch(err => console.log('Stats update error:', err));
   };
 
-  // PLAYER STATS — fetches wins/losses/draws from Firestore for the
-  // Player Profile screen
+  // Fetches wins/losses/draws from Firestore for the Player Profile screen
   const fetchPlayerStatsByUid = async (
     uid: string,
   ): Promise<{ wins: number; losses: number; draws: number }> => {
@@ -1512,7 +1790,8 @@ const GameLogic = (myAvatarId?: string | null, myPhoto?: string | null) => {
     }
   };
 
-  // USERNAME SEARCH — prefix search over the Firestore users collection
+  // Prefix search over the Firestore users collection, matching on
+  // either username or name
   const searchPlayerByUsername = (query: string) => {
     if (!query.trim()) {
       setSearchResults([]);
@@ -1549,11 +1828,12 @@ const GameLogic = (myAvatarId?: string | null, myPhoto?: string | null) => {
 
         [...usernameSnap.docs, ...nameSnap.docs].forEach(doc => {
           const data = doc.data();
-          if (!data.username || data.username === myName) return;
+          const displayIdentifier = data.username || data.name;
+          if (!displayIdentifier || displayIdentifier === myName) return;
           if (!map.has(doc.id)) {
             map.set(doc.id, {
               uid: doc.id,
-              username: data.username,
+              username: displayIdentifier,
               photo: data.photoURL ?? null,
               avatarId: data.avatarId ?? null,
             });
@@ -1567,6 +1847,7 @@ const GameLogic = (myAvatarId?: string | null, myPhoto?: string | null) => {
         setSearchResults([]);
       });
   };
+
   // ============ RANDOM MATCH ============
 
   const cancelRandomMatch = () => {
@@ -1579,6 +1860,8 @@ const GameLogic = (myAvatarId?: string | null, myPhoto?: string | null) => {
     setRandomMatchStatus('idle');
   };
 
+  // Matches this player against a waiting candidate in /matchmaking, or
+  // joins the queue and waits to be matched
   const findRandomMatch = () => {
     if (!myName) return;
     const myUid = auth().currentUser?.uid;
@@ -1589,13 +1872,38 @@ const GameLogic = (myAvatarId?: string | null, myPhoto?: string | null) => {
     setRandomMatchStatus('searching');
 
     const queueRef = database().ref('/matchmaking');
+    const MATCH_QUEUE_TTL = 20 * 1000;
 
     queueRef.once('value').then(snapshot => {
       const data = snapshot.val() || {};
+      const now = Date.now();
+      const staleUpdates: Record<string, null> = {};
 
-      const candidateUid = Object.keys(data).find(
-        uid => uid !== myUid && data[uid]?.status === 'waiting',
-      );
+      let candidateUid: string | null = null;
+      for (const uid of Object.keys(data)) {
+        if (uid === myUid) continue;
+        const entry = data[uid];
+        if (entry?.status !== 'waiting') continue;
+
+        const ts = entry?.timestamp ?? 0;
+        if (ts && now - ts > MATCH_QUEUE_TTL) {
+          // Stale/ghost entry — don't match against it, queue for deletion
+          staleUpdates[`/matchmaking/${uid}`] = null;
+          continue;
+        }
+
+        candidateUid = uid;
+        break;
+      }
+
+      if (Object.keys(staleUpdates).length > 0) {
+        database()
+          .ref()
+          .update(staleUpdates)
+          .catch(err =>
+            console.log('Ghost matchmaking cleanup FAILED:', err.message),
+          );
+      }
 
       if (candidateUid) {
         const candidateRef = database().ref(`/matchmaking/${candidateUid}`);
@@ -1608,18 +1916,21 @@ const GameLogic = (myAvatarId?: string | null, myPhoto?: string | null) => {
                 ...current,
                 status: 'matched',
                 roomCode: code,
+                matchedWithUid: myUid,
                 matchedWithName: myName,
                 matchedWithPhoto: myPhoto ?? null,
                 matchedWithAvatarId: myAvatarId ?? null,
               };
             }
-            return current;
+            return undefined; // abort — someone else already claimed this candidate
           })
           .then(result => {
-            if (
+            const won =
               result.committed &&
-              result.snapshot.val()?.status === 'matched'
-            ) {
+              result.snapshot.val()?.status === 'matched' &&
+              result.snapshot.val()?.matchedWithUid === myUid;
+
+            if (won) {
               const opponentData = result.snapshot.val();
               const ref = database().ref(`/rooms/${code}`);
               roomRef.current = ref;
@@ -1642,7 +1953,7 @@ const GameLogic = (myAvatarId?: string | null, myPhoto?: string | null) => {
                   status: 'playing',
                 })
                 .then(() => {
-                  // Disconnect huda room hataune
+                  // Disconnect on this (host) side removes the room
                   ref.onDisconnect().remove();
 
                   setRoomCode(code);
@@ -1659,8 +1970,15 @@ const GameLogic = (myAvatarId?: string | null, myPhoto?: string | null) => {
                     setScreen('multiplayerGame');
                     setRandomMatchStatus('idle');
                   }, 1500);
+                })
+                .catch(err => {
+                  console.log('Room creation FAILED:', err.message);
+                  setMultiplayerError('Failed to create match. Try again.');
+                  setRandomMatchStatus('idle');
                 });
             } else {
+              // Someone else grabbed this candidate first — try again
+              // (either find another candidate or fall back to waiting)
               findRandomMatch();
             }
           });
@@ -1668,8 +1986,8 @@ const GameLogic = (myAvatarId?: string | null, myPhoto?: string | null) => {
         const myRef = database().ref(`/matchmaking/${myUid}`);
         randomMatchRef.current = myRef;
 
-        // Matchmaking queue entry pani disconnect huda auto-cleanup —
-        // natra queue ma "waiting" ko rup ma ghost entry basirahancha
+        // Auto-cleanup the matchmaking queue entry on disconnect —
+        // otherwise it stays as a "waiting" ghost entry in the queue.
         myRef.onDisconnect().remove();
 
         myRef.set({
@@ -1735,6 +2053,7 @@ const GameLogic = (myAvatarId?: string | null, myPhoto?: string | null) => {
     joinRoomWithCode,
     allRooms,
     fetchAllRooms,
+    stopFetchingAllRooms,
     handlePress,
     handleMultiplayerPress,
     resetGame,

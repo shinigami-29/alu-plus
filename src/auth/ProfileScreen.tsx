@@ -23,7 +23,7 @@ type Props = { navigation: NativeStackNavigationProp<any> };
 const ProfileScreen = ({ navigation }: Props) => {
   const { user, userProfile, updateProfile, logout, refreshProfile } =
     useAuth();
-  const { myName, setMyName, renameUsernameEverywhere } = useGameLogic();
+  const { myName, setMyName, renameUsernameEverywhere, updateLeaderboardName   } = useGameLogic();
 
   const displayName =
     userProfile?.name ||
@@ -112,27 +112,31 @@ const ProfileScreen = ({ navigation }: Props) => {
   };
 
   const handleSelectAvatar = (avatarId: string) => {
-    setAvatarSaving(true);
-    updateProfile({ avatarId, photoURL: null })
-      .then(() => {
-        setAvatarPickerVisible(false);
-        showMessage('success', 'Success', 'Avatar has been update!');
-      })
-      .catch(err => showMessage('error', 'Error', err.message))
-      .finally(() => setAvatarSaving(false));
-  };
+  setAvatarSaving(true);
+  updateProfile({ avatarId, photoURL: null })
+    .then(() => {
+      setAvatarPickerVisible(false);
+      const currentName = myName || userProfile?.username || userProfile?.name || '';
+      if (currentName) updateLeaderboardName(currentName, avatarId, null);
+      showMessage('success', 'Success', 'Avatar has been update!');
+    })
+    .catch(err => showMessage('error', 'Error', err.message))
+    .finally(() => setAvatarSaving(false));
+};
 
   const handleSelectMyPhoto = () => {
-    if (!photoURL) return;
-    setAvatarSaving(true);
-    updateProfile({ avatarId: null })
-      .then(() => {
-        setAvatarPickerVisible(false);
-        showMessage('success', 'Success', 'Avatar has been update!');
-      })
-      .catch(err => showMessage('error', 'Error', err.message))
-      .finally(() => setAvatarSaving(false));
-  };
+  if (!photoURL) return;
+  setAvatarSaving(true);
+  updateProfile({ avatarId: null })
+    .then(() => {
+      setAvatarPickerVisible(false);
+      const currentName = myName || userProfile?.username || userProfile?.name || '';
+      if (currentName) updateLeaderboardName(currentName, null, photoURL);
+      showMessage('success', 'Success', 'Avatar has been update!');
+    })
+    .catch(err => showMessage('error', 'Error', err.message))
+    .finally(() => setAvatarSaving(false));
+};
 
   useFocusEffect(
     React.useCallback(() => {

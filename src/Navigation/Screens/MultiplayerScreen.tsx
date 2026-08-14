@@ -24,6 +24,7 @@ import Layout from '../../components/AppLayout/Layout';
 import Avatar from '../../components/Avatar/Avatar';
 import GradientCard from '../../components/GradientCard/GradientCard';
 import { COLORS } from '../../theme/colors';
+import InviteToast from '../../components/Toast/InviteToast'
 
 type Props = { navigation: NativeStackNavigationProp<any> };
 
@@ -52,6 +53,8 @@ const MultiplayerScreen = ({ navigation }: Props) => {
     searchResults,
     fetchGameFriends,
     onlineStatus,
+    incomingFriendRequests,
+    incomingInvitations
   } = useGameLogic();
   const { userProfile, user } = useAuth();
   const [toastMessage, setToastMessage] = useState<string | null>(null);
@@ -189,6 +192,12 @@ const MultiplayerScreen = ({ navigation }: Props) => {
           </View>
         </View>
 
+        <InviteToast
+        invitations={incomingInvitations}
+        friendRequests={incomingFriendRequests}
+        navigation={navigation}
+      />
+
         {/* Search by username */}
         <View style={s.searchBar}>
           <Search size={16} color="rgba(245,239,224,0.6)" />
@@ -240,7 +249,7 @@ const MultiplayerScreen = ({ navigation }: Props) => {
         <View style={s.tabRow}>
           <TouchableOpacity
             style={[s.tabBtn, activeTab === 'friends' && s.tabBtnActive]}
-            onPress={() => setActiveTab('friends')}
+            onPress={() => setActiveTab('friends')}  
           >
             <Text
               style={[s.tabText, activeTab === 'friends' && s.tabTextActive]}
@@ -250,7 +259,7 @@ const MultiplayerScreen = ({ navigation }: Props) => {
           </TouchableOpacity>
           <TouchableOpacity
             style={[s.tabBtn, activeTab === 'recent' && s.tabBtnActive]}
-            onPress={() => setActiveTab('recent')}
+            onPress={() => setActiveTab('recent')}  
           >
             <Text
               style={[s.tabText, activeTab === 'recent' && s.tabTextActive]}
