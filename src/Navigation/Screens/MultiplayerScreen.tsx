@@ -66,6 +66,7 @@ const MultiplayerScreen = ({ navigation }: Props) => {
 
   const [activeTab, setActiveTab] = useState<Tab>('friends');
   const [searchQuery, setSearchQuery] = useState('');
+  const [isSearching, setIsSearching] = useState(false); 
 
   const [profileReady, setProfileReady] = useState(false);
 
@@ -147,12 +148,23 @@ const MultiplayerScreen = ({ navigation }: Props) => {
     };
   }, []);
 
+  useEffect(() => {
+  setIsSearching(false);
+}, [searchResults]);
+
   const handleSearchChange = (text: string) => {
     setSearchQuery(text);
-    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
-    searchTimerRef.current = setTimeout(() => {
-      searchPlayerByUsername(text);
-    }, 350);
+  if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+
+  if (!text.trim()) {
+    setIsSearching(false);
+    return;
+  }
+
+  setIsSearching(true);
+  searchTimerRef.current = setTimeout(() => {
+    searchPlayerByUsername(text);
+  }, 350);
   };
 
   // Avatar for list rows (game friends / search results) — avatarId > photo > letter
@@ -215,9 +227,14 @@ const MultiplayerScreen = ({ navigation }: Props) => {
 
         {searchQuery.length > 0 && (
           <View style={s.searchResultsBox}>
-            {searchResults.length === 0 ? (
-              <Text style={s.emptyText}>No user found</Text>
-            ) : (
+           {isSearching ? (
+      <View style={s.searchingRow}>
+        <ActivityIndicator size="small" color={COLORS.gold} />
+        <Text style={s.searchingText}>Searching...</Text>
+      </View>
+    ) : searchResults.length === 0 ? (
+      <Text style={s.emptyText}>No user found</Text>
+    ) : (
               searchResults.map((item: SearchResultItem) => (
                 <View key={item.uid} style={s.playerRow}>
                   <View style={s.playerRowLeft}>
@@ -493,6 +510,20 @@ const s = StyleSheet.create({
     fontSize: 14,
     color: COLORS.textOnDark,
   },
+
+  searchingRow: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'center',
+  gap: 8,
+  paddingVertical: 4,
+},
+searchingText: {
+  fontSize: 13,
+  color: 'rgba(245,239,224,0.7)',
+  fontWeight: '600',
+},
+
   searchResultsBox: {
     backgroundColor: 'rgba(255,255,255,0.10)',
     borderRadius: 14,
