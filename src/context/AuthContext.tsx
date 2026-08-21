@@ -1,7 +1,31 @@
 //to connect to  firebase
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import auth, { FirebaseAuthTypes } from '@react-native-firebase/auth';
-import firestore from '@react-native-firebase/firestore';
+import {
+  getAuth,
+  onAuthStateChanged,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signInWithCredential,
+  signInAnonymously,
+  signOut,
+  sendEmailVerification,
+  linkWithCredential,
+  updateProfile as updateFirebaseAuthProfile,
+  GoogleAuthProvider,
+  FacebookAuthProvider,
+  User,
+} from '@react-native-firebase/auth';
+import {
+  getFirestore,
+  collection,
+  doc,
+  getDoc,
+  setDoc,
+  updateDoc,
+  onSnapshot,
+  serverTimestamp,
+  increment,
+} from '@react-native-firebase/firestore';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { LoginManager, AccessToken, Settings } from 'react-native-fbsdk-next';
 
@@ -9,6 +33,10 @@ GoogleSignin.configure({
   webClientId:
     '603350820884-4urjapll9a70ofb55kdmlnhraldoscb7.apps.googleusercontent.com',
 });
+
+const authInstance = getAuth();
+const db = getFirestore();
+const usersCollection = collection(db, 'users');
 
 type UserProfile = {
   uid: string;
@@ -25,7 +53,7 @@ type UserProfile = {
 };
 
 type AuthContextType = {
-  user: FirebaseAuthTypes.User | null;
+  user: User | null;
   userProfile: UserProfile | null;
   loading: boolean;
   registerWithEmail: (
@@ -66,17 +94,17 @@ const buildDefaultProfile = (
   draw: 0,
   rank: 'Beginner',
   online: true,
-  createdAt: firestore.FieldValue.serverTimestamp(),
+  createdAt: serverTimestamp(),
 });
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
-  const [user, setUser] = useState<FirebaseAuthTypes.User | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const profileUnsubscribeRef = React.useRef<(() => void) | null>(null);
 
   useEffect(() => {
-    const unsubscribe = auth().onAuthStateChanged(firebaseUser => {
+    const unsubscribe = onAuthStateChanged(authInstance, firebaseUser => {
       setUser(firebaseUser);
       if (firebaseUser) {
         fetchUserProfile(firebaseUser.uid);
@@ -102,21 +130,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       profileUnsubscribeRef.current = null;
     }
 
-    const unsubscribe = firestore()
-      .collection('users')
-      .doc(uid)
-      .onSnapshot(
-        doc => {
-          if (doc.exists()) {
-            setUserProfile(doc.data() as UserProfile);
-          }
-          setLoading(false);
-        },
-        err => {
-          console.log('fetchUserProfile error:', err);
-          setLoading(false);
-        },
-      );
+    const unsubscribe = onSnapshot(
+      doc(usersCollection, uid),
+      snap => {
+        if (snap.exists()) {
+          setUserProfile(snap.data() as UserProfile);
+        }
+        setLoading(false);
+      },
+      err => {
+        console.log('fetchUserProfile error:', err);
+        setLoading(false);
+      },
+    );
 
     profileUnsubscribeRef.current = unsubscribe;
   };
@@ -127,27 +153,25 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     name: string,
     username: string,
   ) => {
-    return auth()
-      .createUserWithEmailAndPassword(email, password)
+    return createUserWithEmailAndPassword(authInstance, email, password)
       .then(({ user: newUser }) => {
-        return firestore()
-          .collection('users')
-          .doc(newUser.uid)
-          .set(buildDefaultProfile(newUser.uid, name, username, email, null))
-          .then(() => {
-            // Send verification email — if this fails, don't block
-            // registration, just retry silently in the background
-            return newUser
-              .sendEmailVerification()
-              .catch(err => console.log('sendEmailVerification error:', err));
-          });
+        return setDoc(
+          doc(usersCollection, newUser.uid),
+          buildDefaultProfile(newUser.uid, name, username, email, null),
+        ).then(() => {
+          // Send verification email — if this fails, don't block
+          // registration, just retry silently in the background
+          return sendEmailVerification(newUser).catch(err =>
+            console.log('sendEmailVerification error:', err),
+          );
+        });
       });
   };
 
   const loginWithEmail = (email: string, password: string) => {
-    return auth()
-      .signInWithEmailAndPassword(email, password)
-      .then(() => {});
+    return signInWithEmailAndPassword(authInstance, email, password).then(
+      () => {},
+    );
   };
 
   const loginWithGoogle = () => {
@@ -157,74 +181,58 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       .then(() => GoogleSignin.signIn())
       .then(() => GoogleSignin.getTokens())
       .then(({ idToken, accessToken }) => {
-        const googleCredential = auth.GoogleAuthProvider.credential(
+        const googleCredential = GoogleAuthProvider.credential(
           idToken,
           accessToken,
         );
-        return auth().signInWithCredential(googleCredential);
+        return signInWithCredential(authInstance, googleCredential);
       })
       .then(({ user: googleUser }) => {
-        return firestore()
-          .collection('users')
-          .doc(googleUser.uid)
-          .get()
-          .then(doc => {
-            if (!doc.exists()) {
-              return firestore()
-                .collection('users')
-                .doc(googleUser.uid)
-                .set(
-                  buildDefaultProfile(
-                    googleUser.uid,
-                    googleUser.displayName ?? '',
-                    googleUser.email?.split('@')[0] ?? '',
-                    googleUser.email ?? '',
-                    googleUser.photoURL ?? null,
-                  ),
-                );
-            }
+        const userDoc = doc(usersCollection, googleUser.uid);
+        return getDoc(userDoc).then(snap => {
+          if (!snap.exists()) {
+            return setDoc(
+              userDoc,
+              buildDefaultProfile(
+                googleUser.uid,
+                googleUser.displayName ?? '',
+                googleUser.email?.split('@')[0] ?? '',
+                googleUser.email ?? '',
+                googleUser.photoURL ?? null,
+              ),
+            );
+          }
 
-            const existing = doc.data();
-            if (!existing?.avatarId && googleUser.photoURL) {
-              return firestore()
-                .collection('users')
-                .doc(googleUser.uid)
-                .update({ photoURL: googleUser.photoURL })
-                .catch(() => {});
-            }
-          });
+          const existing = snap.data();
+          if (!existing?.avatarId && googleUser.photoURL) {
+            return updateDoc(userDoc, {
+              photoURL: googleUser.photoURL,
+            }).catch(() => {});
+          }
+        });
       });
   };
 
   const loginAsGuest = () => {
-    return auth()
-      .signInAnonymously()
-      .then(({ user: guestUser }) => {
-        return firestore()
-          .collection('users')
-          .doc(guestUser.uid)
-          .get()
-          .then(doc => {
-            if (!doc.exists()) {
-              const newProfile = buildDefaultProfile(
-                guestUser.uid,
-                'Guest',
-                `guest_${guestUser.uid.slice(0, 6)}`,
-                '',
-                null,
-              );
-              return firestore()
-                .collection('users')
-                .doc(guestUser.uid)
-                .set(newProfile)
-                .then(() => {
-                  setUserProfile(newProfile as unknown as UserProfile);
-                });
-            } else {
-              setUserProfile(doc.data() as UserProfile);
-            }
+    return signInAnonymously(authInstance).then(({ user: guestUser }) => {
+      const userDoc = doc(usersCollection, guestUser.uid);
+      return getDoc(userDoc).then(snap => {
+        if (!snap.exists()) {
+          const newProfile = buildDefaultProfile(
+            guestUser.uid,
+            'Guest',
+            `guest_${guestUser.uid.slice(0, 6)}`,
+            '',
+            null,
+          );
+          return setDoc(userDoc, newProfile).then(() => {
+            setUserProfile(newProfile as unknown as UserProfile);
           });
+        } else {
+          setUserProfile(snap.data() as UserProfile);
+        }
       });
+    });
   };
 
   const fetchFacebookProfile = (
@@ -275,7 +283,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         if (!data) {
           throw new Error('Something went wrong obtaining access token');
         }
-        const facebookCredential = auth.FacebookAuthProvider.credential(
+        const facebookCredential = FacebookAuthProvider.credential(
           data.accessToken,
         );
 
@@ -285,10 +293,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
           // If already signed in with another provider (Google), link
           // the Facebook credential directly to that current user
-          const currentUser = auth().currentUser;
+          const currentUser = authInstance.currentUser;
           const signInPromise = currentUser
-            ? currentUser.linkWithCredential(facebookCredential)
-            : auth().signInWithCredential(facebookCredential);
+            ? linkWithCredential(currentUser, facebookCredential)
+            : signInWithCredential(authInstance, facebookCredential);
 
           // Also update Firebase Auth's currentUser.photoURL/displayName —
           // otherwise linkWithCredential/signInWithCredential won't populate
@@ -300,7 +308,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
             if (profile.photoURL || profile.name) {
               try {
-                await fbAuthUser.updateProfile({
+                await updateFirebaseAuthProfile(fbAuthUser, {
                   displayName:
                     profile.name || fbAuthUser.displayName || undefined,
                   photoURL:
@@ -333,40 +341,29 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         const photoURL = fbProfile.photoURL ?? fbUser.photoURL ?? null;
         const email = fbProfile.email ?? fbUser.email ?? '';
 
-        return firestore()
-          .collection('users')
-          .doc(fbUser.uid)
-          .get()
-          .then(doc => {
-            if (!doc.exists()) {
-              return firestore()
-                .collection('users')
-                .doc(fbUser.uid)
-                .set(
-                  buildDefaultProfile(
-                    fbUser.uid,
-                    name,
-                    email
-                      ? email.split('@')[0]
-                      : `fb_${fbUser.uid.slice(0, 6)}`,
-                    email,
-                    photoURL,
-                  ),
-                );
-            }
+        const userDoc = doc(usersCollection, fbUser.uid);
+        return getDoc(userDoc).then(snap => {
+          if (!snap.exists()) {
+            return setDoc(
+              userDoc,
+              buildDefaultProfile(
+                fbUser.uid,
+                name,
+                email ? email.split('@')[0] : `fb_${fbUser.uid.slice(0, 6)}`,
+                email,
+                photoURL,
+              ),
+            );
+          }
 
-            // Existing user: only apply Facebook's photo if they haven't
-            // manually set an avatarId. Don't overwrite the name — the
-            // user may have changed it inside the app already
-            const existing = doc.data();
-            if (!existing?.avatarId && photoURL) {
-              return firestore()
-                .collection('users')
-                .doc(fbUser.uid)
-                .update({ photoURL })
-                .catch(() => {});
-            }
-          });
+          // Existing user: only apply Facebook's photo if they haven't
+          // manually set an avatarId. Don't overwrite the name — the
+          // user may have changed it inside the app already
+          const existing = snap.data();
+          if (!existing?.avatarId && photoURL) {
+            return updateDoc(userDoc, { photoURL }).catch(() => {});
+          }
+        });
       });
   };
 
@@ -376,17 +373,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const logout = () => {
-    const currentUser = auth().currentUser;
+    const currentUser = authInstance.currentUser;
     if (!currentUser) {
       setUserProfile(null);
       return Promise.resolve();
     }
-    return firestore()
-      .collection('users')
-      .doc(currentUser.uid)
-      .update({ online: false })
+    return updateDoc(doc(usersCollection, currentUser.uid), {
+      online: false,
+    })
       .catch(() => {})
-      .then(() => auth().signOut())
+      .then(() => signOut(authInstance))
       .then(() => {
         setUserProfile(null);
       });
@@ -394,30 +390,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const updateProfile = (data: Partial<UserProfile>) => {
     if (!user) return Promise.reject('No user');
-    return firestore()
-      .collection('users')
-      .doc(user.uid)
-      .update(data)
-      .then(() => {
-        setUserProfile(prev => (prev ? { ...prev, ...data } : null));
-      });
+    return updateDoc(doc(usersCollection, user.uid), data).then(() => {
+      setUserProfile(prev => (prev ? { ...prev, ...data } : null));
+    });
   };
 
   const recordGameResult = (result: 'win' | 'loss' | 'draw') => {
     if (!user) return Promise.reject('No user');
     const field =
       result === 'win' ? 'wins' : result === 'loss' ? 'losses' : 'draw';
-    return firestore()
-      .collection('users')
-      .doc(user.uid)
-      .update({
-        [field]: firestore.FieldValue.increment(1),
-      })
-      .then(() => {
-        setUserProfile(prev =>
-          prev ? { ...prev, [field]: (prev[field] ?? 0) + 1 } : null,
-        );
-      });
+    return updateDoc(doc(usersCollection, user.uid), {
+      [field]: increment(1),
+    }).then(() => {
+      setUserProfile(prev =>
+        prev ? { ...prev, [field]: (prev[field] ?? 0) + 1 } : null,
+      );
+    });
   };
 
   return (
