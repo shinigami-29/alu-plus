@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
@@ -10,6 +9,7 @@ import {
   FlatList,
   ActivityIndicator,
   RefreshControl,
+  //  Switch, 
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useGameLogic } from '../GameLogicContext';
@@ -19,6 +19,7 @@ import {
   LogIn,
   Search,
   UserPlus,
+ 
 } from 'lucide-react-native';
 import Layout from '../../components/AppLayout/Layout';
 import Avatar from '../../components/Avatar/Avatar';
@@ -60,6 +61,8 @@ const MultiplayerScreen = ({ navigation }: Props) => {
   const [toastMessage, setToastMessage] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const myPhoto = userProfile?.photoURL || user?.photoURL || null;
+  // const [createPrivate, setCreatePrivate] = useState(false);
+  
 
   const [activeTab, setActiveTab] = useState<Tab>('friends');
   const [searchQuery, setSearchQuery] = useState('');
@@ -281,6 +284,7 @@ const MultiplayerScreen = ({ navigation }: Props) => {
               <FlatList
                 data={gameFriends}
                 keyExtractor={item => item.name}
+                 showsVerticalScrollIndicator={false}
                 contentContainerStyle={{ padding: 12, gap: 10 }}
                 refreshControl={
                   <RefreshControl
@@ -337,6 +341,7 @@ const MultiplayerScreen = ({ navigation }: Props) => {
             <FlatList
               data={recentOpponents}
               keyExtractor={item => item.name}
+               showsVerticalScrollIndicator={false}
               contentContainerStyle={{ padding: 12, gap: 10 }}
               refreshControl={
                 <RefreshControl
@@ -386,6 +391,7 @@ const MultiplayerScreen = ({ navigation }: Props) => {
           value={roomName}
           onChangeText={setRoomName}
         />
+
 
         {/* Action buttons */}
         <View style={s.btnGroup}>
@@ -669,3 +675,4 @@ const s = StyleSheet.create({
   dotOnline: { backgroundColor: '#28C76F' },
   dotOffline: { backgroundColor: '#9098a8' },
 });
+

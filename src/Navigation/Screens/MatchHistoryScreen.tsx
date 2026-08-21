@@ -58,6 +58,7 @@ const MatchHistoryScreen = ({ navigation }: Props) => {
           data={matchHistory as SessionRecord[]}
           keyExtractor={(item, index) => item.roomCode + item.timestamp + index}
           contentContainerStyle={s.listContent}
+           showsVerticalScrollIndicator={false}
           ListEmptyComponent={
             <View style={s.emptyContainer}>
               <View style={s.emptyIconCircle}>
@@ -118,7 +119,7 @@ const s = StyleSheet.create({
     flex: 1,
   },
 
-  listContent: { paddingHorizontal: 20, paddingBottom: 30 },
+  listContent: {paddingBottom: 30 },
 
   emptyContainer: {
     alignItems: 'center',

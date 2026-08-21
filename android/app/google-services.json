@@ -39,6 +39,14 @@
           }
         },
         {
+          "client_id": "603350820884-ntjs0015hs5m8k0rooht9qmhrv907ji8.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.outlines.aluplus",
+            "certificate_hash": "98d0105fabcf21ae00d4ef1caa91c977e6fc7733"
+          }
+        },
+        {
           "client_id": "603350820884-4urjapll9a70ofb55kdmlnhraldoscb7.apps.googleusercontent.com",
           "client_type": 3
         }

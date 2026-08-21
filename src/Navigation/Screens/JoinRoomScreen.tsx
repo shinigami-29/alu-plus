@@ -11,11 +11,14 @@ import { useGameLogic } from '../GameLogicContext';
 import { LogIn } from 'lucide-react-native';
 import { DoorOpen } from 'lucide-react-native';
 import Layout from '../../components/AppLayout/Layout';
+import { useRoute } from '@react-navigation/native';
 
 type Props = { navigation: NativeStackNavigationProp<any> };
 
 const JoinRoomScreen = ({ navigation }: Props) => {
   const { joinCode, setJoinCode, joinRoom, multiplayerError, leaveRoom } = useGameLogic();
+  const route = useRoute<any>();
+const prefillCode = route.params?.prefillCode;
 
 
   useEffect(() => {
@@ -30,6 +33,11 @@ const JoinRoomScreen = ({ navigation }: Props) => {
       return unsubscribe;
     }, [navigation, leaveRoom]);
     
+    useEffect(() => {
+  if (prefillCode) {
+    setJoinCode(prefillCode);
+  }
+}, [prefillCode]);
     const handleLeave = () => {
   leaveRoom();
   navigation.navigate('Multiplayer' as never);

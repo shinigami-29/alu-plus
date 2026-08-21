@@ -183,6 +183,7 @@ const LeaderboardScreen = ({ navigation }: Props) => {
             data={leaderboard}
             keyExtractor={(item, index) => index.toString()}
             style={s.list}
+             showsVerticalScrollIndicator={false}
             contentContainerStyle={{ paddingBottom: 24 }}
             renderItem={({ item, index }) => {
               const isMe = item.name === myName;

@@ -82,6 +82,7 @@ const Layout = ({ children, withScroll = true, header }: Props) => {
           { paddingBottom: insets.bottom },
         ],
         keyboardShouldPersistTaps: 'handled' as const,
+         showsVerticalScrollIndicator: false, 
       }
     : { style: styles.plainContent };
   return (

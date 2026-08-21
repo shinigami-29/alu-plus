@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useGameLogic } from '../GameLogicContext';
-import { Check, X, MailOpen, UserPlus } from 'lucide-react-native';
+import { Check, X, MailOpen, UserPlus, Clock } from 'lucide-react-native';
 import Layout from '../../components/AppLayout/Layout';
 import Avatar from '../../components/Avatar/Avatar';
 import { COLORS } from '../../theme/colors';
@@ -28,9 +28,18 @@ const InvitationScreen = ({ navigation }: Props) => {
     rejectFriendRequest,
     incomingFriendRequests,
      multiplayerError,
+     INVITE_TTL_MS,
   } = useGameLogic();
 
   const [activeTab, setActiveTab] = useState<Tab>('invites');
+
+  // NEW: ticking clock so the countdown badge on each invite card updates
+  // every second without needing a fresh Firebase write
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(id);
+  }, []);
 
   useEffect(() => {
     if (screen === 'multiplayerGame') {
@@ -45,6 +54,13 @@ const InvitationScreen = ({ navigation }: Props) => {
     acceptFriendRequest(fromName);
   const handleRejectFriend = (fromName: string) =>
     rejectFriendRequest(fromName);
+
+  // NEW: seconds left before this invite auto-expires, floored at 0
+  const getSecondsLeft = (timestamp: number) => {
+    if (!timestamp) return null;
+    const msLeft = timestamp + INVITE_TTL_MS - now;
+    return Math.max(0, Math.ceil(msLeft / 1000));
+  };
 
   return (
     <Layout
@@ -120,38 +136,49 @@ const InvitationScreen = ({ navigation }: Props) => {
                   data={incomingInvitations}
                   keyExtractor={(item, index) => index.toString()}
                   contentContainerStyle={s.content}
-                  renderItem={({ item }) => (
-                    <View style={s.playerCard}>
-                      <Avatar
-                        name={item.from}
-                        photoURL={item.fromPhoto}
-                        avatarId={item.fromAvatarId}
-                        size={46}
-                      />
-                      <View style={{ flex: 1 }}>
-                        <Text style={s.playerName} numberOfLines={1}>
-                          {item.from}
-                        </Text>
-                        <Text style={s.inviteSubtext}>
-                          wants to play with you
-                        </Text>
+                  renderItem={({ item }) => {
+                    const secondsLeft = getSecondsLeft(item.timestamp);
+                    return (
+                      <View style={s.playerCard}>
+                        <Avatar
+                          name={item.from}
+                          photoURL={item.fromPhoto}
+                          avatarId={item.fromAvatarId}
+                          size={46}
+                        />
+                        <View style={{ flex: 1 }}>
+                          <Text style={s.playerName} numberOfLines={1}>
+                            {item.from}
+                          </Text>
+                          <Text style={s.inviteSubtext}>
+                            wants to play with you
+                          </Text>
+                          {secondsLeft !== null && (
+                            <View style={s.countdownRow}>
+                              <Clock size={11} color="rgba(245,239,224,0.5)" />
+                              <Text style={s.countdownText}>
+                                {secondsLeft}s left
+                              </Text>
+                            </View>
+                          )}
+                        </View>
+                        <View style={s.actionRow}>
+                          <TouchableOpacity
+                            style={s.acceptBtn}
+                            onPress={() => handleAccept(item.from)}
+                          >
+                            <Check size={16} color="#fff" strokeWidth={3} />
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            style={s.rejectBtn}
+                            onPress={() => handleReject(item.from)}
+                          >
+                            <X size={16} color="#fff" strokeWidth={3} />
+                          </TouchableOpacity>
+                        </View>
                       </View>
-                      <View style={s.actionRow}>
-                        <TouchableOpacity
-                          style={s.acceptBtn}
-                          onPress={() => handleAccept(item.from)}
-                        >
-                          <Check size={16} color="#fff" strokeWidth={3} />
-                        </TouchableOpacity>
-                        <TouchableOpacity
-                          style={s.rejectBtn}
-                          onPress={() => handleReject(item.from)}
-                        >
-                          <X size={16} color="#fff" strokeWidth={3} />
-                        </TouchableOpacity>
-                      </View>
-                    </View>
-                  )}
+                    );
+                  }}
                 />
               )
             ) : incomingFriendRequests.length === 0 ? (
@@ -292,6 +319,19 @@ const s = StyleSheet.create({
   },
   playerName: { fontSize: 15, fontWeight: '700', color: COLORS.textOnDark },
   inviteSubtext: { fontSize: 12, color: 'rgba(245,239,224,0.6)', marginTop: 2 },
+
+  // NEW: countdown badge shown under the "wants to play with you" subtext
+  countdownRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 4,
+  },
+  countdownText: {
+    fontSize: 11,
+    color: 'rgba(245,239,224,0.5)',
+    fontWeight: '600',
+  },
 
   actionRow: { flexDirection: 'row', gap: 8 },
   acceptBtn: {

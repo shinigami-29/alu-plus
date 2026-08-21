@@ -19,6 +19,9 @@ import MatchHistoryScreen from './Screens/MatchHistoryScreen';
 import PlayerProfileScreen from './Screens/PlayerProfileScreen';
 import RoomScreen from './Screens/RoomScreen';
 import RoomListScreen from './Screens/RoomListScreen';
+import CreateEventScreen from './Screens/CreateEventScreen';
+import EventLobbyScreen from './Screens/EventLobbyScreen';
+import EventBracketScreen from './Screens/EventBracketScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -45,6 +48,9 @@ const AppNavigator = () => {
           <Stack.Screen name="Room" component={RoomScreen}/>
           <Stack.Screen name="RoomList" component={RoomListScreen}/>
           <Stack.Screen name="PlayerProfile" component={PlayerProfileScreen} />
+          <Stack.Screen name="CreateEvent" component={CreateEventScreen} />
+          <Stack.Screen name="EventLobby" component={EventLobbyScreen} />
+          <Stack.Screen name="EventBracket" component={EventBracketScreen} />
           
         </Stack.Navigator>
       </NavigationContainer>

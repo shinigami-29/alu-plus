@@ -19,6 +19,7 @@ import {
   Send,
   AlertTriangle,
   CheckCircle2,
+  UserPlus
 } from 'lucide-react-native';
 import Layout from '../../components/AppLayout/Layout';
 import Avatar from '../../components/Avatar/Avatar';
@@ -37,21 +38,26 @@ const RANKS = [
 
 const PlayerProfileScreen = ({ navigation, route }: Props) => {
   const { name, uid, photo, avatarId } = (route.params as any) || {};
-  const { removeFriend, fetchPlayerStatsByUid, sendInvitation } =
+  const { removeFriend, fetchPlayerStatsByUid, sendInvitation, gameFriends, sendFriendRequest, myName } =
     useGameLogic();
 
-  const [stats, setStats] = useState<{
-    wins: number;
-    losses: number;
-    draws: number;
-  } | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  const [removeModalVisible, setRemoveModalVisible] = useState(false);
-  const [inviteSentModalVisible, setInviteSentModalVisible] = useState(false);
+    
+    const [stats, setStats] = useState<{
+      wins: number;
+      losses: number;
+      draws: number;
+    } | null>(null);
+    const [loading, setLoading] = useState(true);
+    
+    const [removeModalVisible, setRemoveModalVisible] = useState(false);
+    const [inviteSentModalVisible, setInviteSentModalVisible] = useState(false);
+    const [friendReqSentModalVisible, setFriendReqSentModalVisible] = useState(false);
 
   const modalScale = useRef(new Animated.Value(0.9)).current;
   const modalOpacity = useRef(new Animated.Value(0)).current;
+
+  const isFriend = gameFriends.some(f => f.name === name);
+  const isSelf = name === myName;
 
   const runModalOpenAnim = () => {
     modalScale.setValue(0.9);
@@ -101,6 +107,12 @@ const PlayerProfileScreen = ({ navigation, route }: Props) => {
     setInviteSentModalVisible(true);
     runModalOpenAnim();
   };
+
+  const handleAddFriend = () => {
+    sendFriendRequest(name);
+    setFriendReqSentModalVisible(true);
+    runModalOpenAnim()
+  }
 
   const wins = stats?.wins ?? 0;
   const losses = stats?.losses ?? 0;
@@ -186,7 +198,8 @@ const PlayerProfileScreen = ({ navigation, route }: Props) => {
         </View>
 
         {/* ===== Actions ===== */}
-        <View style={s.actionsWrap}>
+        {!isSelf && (
+          <View style={s.actionsWrap}>
           <TouchableOpacity
             style={s.inviteBtn}
             activeOpacity={0.85}
@@ -196,15 +209,27 @@ const PlayerProfileScreen = ({ navigation, route }: Props) => {
             <Text style={s.inviteBtnText}>Invite to Game</Text>
           </TouchableOpacity>
 
-          <TouchableOpacity
-            style={s.removeBtn}
-            activeOpacity={0.7}
-            onPress={openRemoveModal}
-          >
-            <Trash2 size={15} color="#E9877D" />
-            <Text style={s.removeBtnText}>Remove Friend</Text>
-          </TouchableOpacity>
+         {isFriend ? (
+              <TouchableOpacity
+                style={s.removeBtn}
+                activeOpacity={0.7}
+                onPress={openRemoveModal}
+              >
+                <Trash2 size={15} color="#E9877D" />
+                <Text style={s.removeBtnText}>Remove Friend</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                style={s.addFriendBtn}
+                activeOpacity={0.7}
+                onPress={handleAddFriend}
+              >
+                <UserPlus size={15} color="#8FBF6A" />
+                <Text style={s.addFriendBtnText}>Add Friend</Text>
+              </TouchableOpacity>
+            )}
         </View>
+        )}
 
         {/* Remove friend confirmation modal */}
         <Modal
@@ -286,6 +311,43 @@ const PlayerProfileScreen = ({ navigation, route }: Props) => {
             </Animated.View>
           </Pressable>
         </Modal>
+
+        {/* friend reques modla  */}
+        <Modal
+        transparent
+        visible={friendReqSentModalVisible}
+        animationType='none'
+        statusBarTranslucent
+        onRequestClose={() => setFriendReqSentModalVisible(false)}>
+         <Pressable
+            style={s.backdrop}
+            onPress={() => setFriendReqSentModalVisible(false)}
+          >
+            <Animated.View
+           style={[
+                s.modalCard,
+                { opacity: modalOpacity, transform: [{ scale: modalScale }] },
+              ]}
+              onStartShouldSetResponder={() => true}
+              >
+                <View style={[s.modalIconCircle, { backgroundColor: '#1E3A2E' }]}>
+                <CheckCircle2 size={26} color="#5FD68F" />
+              </View>
+               <Text style={s.modalTitle}>Friend request sent</Text>
+              <Text style={s.modalMessage}>
+                Friend request has been sent to {name}
+              </Text>
+              <TouchableOpacity
+                style={s.modalConfirmBtnFull}
+                activeOpacity={0.85}
+                onPress={() => setFriendReqSentModalVisible(false)}
+              >
+                <Text style={s.modalConfirmBtnText}>Okay</Text>
+              </TouchableOpacity>
+
+            </Animated.View>
+          </Pressable>
+          </Modal>
       </View>
     </Layout>
   );
@@ -470,6 +532,18 @@ const s = StyleSheet.create({
     gap: 6,
   },
   removeBtnText: { color: '#E9877D', fontWeight: '700', fontSize: 13.5 },
+
+   
+  addFriendBtn: {
+    flexDirection: 'row',
+    backgroundColor: 'transparent',
+    paddingVertical: 12,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  addFriendBtnText: { color: '#8FBF6A', fontWeight: '700', fontSize: 13.5 },
 
   // Modal styles
   backdrop: {

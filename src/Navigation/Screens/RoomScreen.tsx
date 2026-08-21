@@ -1,4 +1,3 @@
-
 import React, { useEffect } from 'react';
 import {
   View,
@@ -7,6 +6,7 @@ import {
   StyleSheet,
   Alert,
   ActivityIndicator,
+  Switch,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useGameLogic } from '../GameLogicContext';
@@ -28,6 +28,8 @@ const RoomScreen = ({ navigation }: Props) => {
     opponentPhoto,
     opponentAvatarId,
     leaveRoom,
+    roomIsPrivate,
+    updateRoomPrivacy,
   } = useGameLogic();
   const { userProfile, user } = useAuth();
 
@@ -61,6 +63,10 @@ const RoomScreen = ({ navigation }: Props) => {
     Alert.alert('Copied', 'Room code copied to clipboard');
   };
 
+  const handleTogglePrivacy = (value: boolean) => {
+    updateRoomPrivacy(value);
+  };
+
   return (
     <Layout>
       <View style={s.container}>
@@ -83,7 +89,33 @@ const RoomScreen = ({ navigation }: Props) => {
               <Text style={s.copyBtnText}>Copy</Text>
             </TouchableOpacity>
           </View>
-          <Text style={s.codeHint}>Share this code with a friend to join</Text>
+
+          {/* Public/Private toggle — updates the live room's visibility */}
+          <View style={s.visRow}>
+            <View style={{ flex: 1 }}>
+              <View
+                style={[
+                  s.visBadge,
+                  roomIsPrivate ? s.visBadgePrivate : s.visBadgePublic,
+                ]}
+              >
+                <Text style={s.visBadgeText}>
+                  {roomIsPrivate ? 'PRIVATE' : 'PUBLIC'}
+                </Text>
+              </View>
+              <Text style={s.codeHint}>
+                {roomIsPrivate
+                  ? 'Only joinable with this code'
+                  : 'Visible in Room List, or share this code'}
+              </Text>
+            </View>
+            <Switch
+              value={roomIsPrivate}
+              onValueChange={handleTogglePrivacy}
+              trackColor={{ false: 'rgba(255,255,255,0.2)', true: '#c9a227' }}
+              thumbColor="#fff"
+            />
+          </View>
 
           <View style={s.divider} />
 
@@ -244,6 +276,32 @@ const s = StyleSheet.create({
     color: '#eef0fa',
     fontSize: 12,
     fontWeight: '600',
+  },
+
+  // ---- Public/Private row (toggle now lives here, updates live room) ----
+  visRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 12,
+  },
+  visBadge: {
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 10,
+  },
+  visBadgePublic: {
+    backgroundColor: 'rgba(95,214,143,0.18)',
+  },
+  visBadgePrivate: {
+    backgroundColor: 'rgba(241,145,145,0.18)',
+  },
+  visBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    color: '#eef0fa',
+    letterSpacing: 0.5,
   },
   codeHint: {
     fontSize: 11,

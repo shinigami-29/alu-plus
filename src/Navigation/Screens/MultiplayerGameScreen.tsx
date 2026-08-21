@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useRef, useMemo } from 'react';
 import {
   View,
@@ -16,7 +15,7 @@ import Layout from '../../components/AppLayout/Layout';
 import Avatar from '../../components/Avatar/Avatar';
 import Toast from '../../components/Toast/Toast';
 
-type Props = { navigation: NativeStackNavigationProp<any> };
+type Props = { navigation: NativeStackNavigationProp<any>; route: any  };
 
 // all possible winning combos (row, column, diagonal)
 const WIN_LINES = [
@@ -29,6 +28,7 @@ const WIN_LINES = [
   [0, 4, 8],
   [2, 4, 6],
 ];
+
 
 function findWinningLine(board: any[]): number[] | null {
   for (const line of WIN_LINES) {
@@ -67,7 +67,8 @@ function getLineGeometry(line: number[]) {
   return { cx: BOARD_SIZE / 2, cy: BOARD_SIZE / 2, length: diagLength, angle: -45 };
 }
 
-const MultiplayerGameScreen = ({ navigation }: Props) => {
+const MultiplayerGameScreen = ({ navigation, route }: Props) => {
+  
   const {
     board,
     winner,
@@ -86,6 +87,11 @@ const MultiplayerGameScreen = ({ navigation }: Props) => {
     myRematchRequested,
     opponentRematchRequested,
     leaveRoom,
+     eventMatchOver,
+  leaveEventRoom,
+  startEventMatch,
+    isEventMatch,
+  eventInfo,
   } = useGameLogic();
 
   const { user, userProfile, recordGameResult } = useAuth();
@@ -105,6 +111,28 @@ const MultiplayerGameScreen = ({ navigation }: Props) => {
     isDraw: boolean;
   } | null>(null);
 
+  // Once the 3-game match is decided, who actually won the match (not just this game)
+  const iWonTheMatch = eventMatchOver && myWins > opponentWins;
+
+   const roundNum = eventInfo?.roundKey
+    ? parseInt(eventInfo.roundKey.replace('round', ''), 10)
+    : 0;
+  const totalRounds = eventInfo?.totalRounds ?? 1;
+
+  // same math as EventBracketScreen.roundLabel()
+  const remainingRounds = totalRounds - roundNum + 1;
+
+  const isFinalRound = isEventMatch && remainingRounds === 1;
+
+  const roundLabel =
+    remainingRounds === 1
+      ? 'Final'
+      : remainingRounds === 2
+      ? 'Semi-Final'
+      : remainingRounds === 3
+      ? 'Quarter-Final'
+      : `Round ${roundNum}`;
+
    // Derive the winning line from the current board (if there is one)
   const winningLine = useMemo(
     () => (winner ? findWinningLine(board) : null),
@@ -123,15 +151,39 @@ const MultiplayerGameScreen = ({ navigation }: Props) => {
     }
   }, [winner, isDraw]);
 
-  useEffect(() => {
-    const unsubscribe = navigation.addListener('beforeRemove', (e: any) => {
-      const actionType = e.data?.action?.type;
-      if (actionType === 'GO_BACK' || actionType === 'POP') {
+ useEffect(() => {
+  const unsubscribe = navigation.addListener('beforeRemove', (e: any) => {
+    const actionType = e.data?.action?.type;
+    if (actionType === 'GO_BACK' || actionType === 'POP') {
+      if (isEventMatch) {
+        leaveEventRoom();
+      } else {
         leaveRoom();
       }
-    });
-    return unsubscribe;
-  }, [navigation, leaveRoom]);
+    }
+  });
+  return unsubscribe;
+}, [navigation, leaveRoom, leaveEventRoom, isEventMatch]);
+
+  useEffect(() => {
+    const p = route.params;
+    if (p?.eventMode) {
+      startEventMatch(p.eventId, p.roundKey, p.matchId, p.player1Uid, p.player2Uid,p.totalRounds);
+    }
+  }, [route.params]);
+
+ useEffect(() => {
+  if (isEventMatch && eventMatchOver) {
+    const timer = setTimeout(() => {
+      const eventId = eventInfo?.eventId;
+      leaveEventRoom();
+      if (eventId) {
+        navigation.goBack();
+      }
+    }, 3000);
+    return () => clearTimeout(timer);
+  }
+}, [isEventMatch, eventMatchOver, eventInfo]);
 
  // Only show the popup after the winning line finishes drawing itself
   useEffect(() => {
@@ -164,21 +216,37 @@ const MultiplayerGameScreen = ({ navigation }: Props) => {
   }, [winner, isDraw]);
 
     // resultText/resultSubtitle come from resultSnapshot now, not the live winner
-  const resultText = resultSnapshot?.isDraw
-    ? 'DRAW!'
-    : resultSnapshot?.winner
-    ? resultSnapshot.winner === myRole
-      ? 'YOU WIN!'
+ const resultText = resultSnapshot?.isDraw
+  ? 'DRAW!'
+  : isEventMatch && eventMatchOver
+  ? isFinalRound
+    ? iWonTheMatch
+      ? 'CONGRATULATIONS!'
       : 'YOU LOSE!'
-    : '';
+    : iWonTheMatch
+    ? 'YOU ADVANCE!'
+    : 'ELIMINATED'
+  : resultSnapshot?.winner
+  ? resultSnapshot.winner === myRole
+    ? 'YOU WIN!'
+    : 'YOU LOSE!'
+  : '';
 
   const resultSubtitle = resultSnapshot?.isDraw
-    ? "It's a tie!"
-    : resultSnapshot?.winner
-    ? resultSnapshot.winner === myRole
-      ? 'Congratulations!'
-      : `${opponentName || 'Opponent'} wins!`
-    : '';
+  ? "It's a tie!"
+  : isEventMatch && eventMatchOver
+  ? isFinalRound
+    ? iWonTheMatch
+      ? 'You are the champion! Heading back to the bracket...'
+      : 'Better luck next time!'
+    : iWonTheMatch
+    ? 'Great job! Heading back to the bracket...'
+    : 'Better luck next time!'
+  : resultSnapshot?.winner
+  ? resultSnapshot.winner === myRole
+    ? 'Congratulations!'
+    : `${opponentName || 'Opponent'} wins!`
+  : '';
 
   // Pressing Leave doesn't go back directly — show a confirm popup first
   const handleLeave = () => {
@@ -233,7 +301,9 @@ const MultiplayerGameScreen = ({ navigation }: Props) => {
           <Text style={s.title}>आलु प्लस</Text>
           <View style={s.titleUnderline} />
         </View>
-        <Text style={s.roomCode}>Room: {roomCode}</Text>
+        <Text style={s.roomCode}>
+  {isEventMatch ? `Round: ${roundLabel}` : `Room: ${roomCode}`}
+</Text>
 
         <View style={s.playerRow}>
           {/* My card — always left/first */}
@@ -379,6 +449,10 @@ const MultiplayerGameScreen = ({ navigation }: Props) => {
                   s.iconCircle,
                   resultSnapshot?.isDraw
                     ? s.iconCircleDraw
+                    : isEventMatch && eventMatchOver
+                    ? iWonTheMatch
+                      ? s.iconCircleWin
+                      : s.iconCircleLose
                     : resultSnapshot?.winner === myRole
                     ? s.iconCircleWin
                     : s.iconCircleLose,
@@ -387,6 +461,10 @@ const MultiplayerGameScreen = ({ navigation }: Props) => {
                 <Text style={s.iconText}>
                   {resultSnapshot?.isDraw
                     ? '🤝'
+                    : isEventMatch && eventMatchOver
+                    ? iWonTheMatch
+                      ? '🏆'
+                      : '👋'
                     : resultSnapshot?.winner === myRole
                     ? '🏆'
                     : '💔'}
@@ -420,40 +498,66 @@ const MultiplayerGameScreen = ({ navigation }: Props) => {
                 </View>
               </View>
 
-              {myRematchRequested ? (
-                <View style={s.waitingBox}>
-                  <Text style={s.waitingText}>
-                    {opponentRematchRequested
-                      ? 'Starting rematch...'
-                      : `Waiting for ${
-                          opponentName || 'opponent'
-                        } to play again...`}
-                  </Text>
-                </View>
-              ) : (
+                  {!isEventMatch && (
                 <>
-                  {opponentRematchRequested && (
-                    <Text style={s.rematchHintText}>
-                      {opponentName || 'Opponent'} wants a rematch!
-                    </Text>
+                  {myRematchRequested ? (
+                    <View style={s.waitingBox}>
+                      <Text style={s.waitingText}>
+                        {opponentRematchRequested
+                          ? 'Starting rematch...'
+                          : `Waiting for ${
+                              opponentName || 'opponent'
+                            } to play again...`}
+                      </Text>
+                    </View>
+                  ) : (
+                    <>
+                      {opponentRematchRequested && (
+                        <Text style={s.rematchHintText}>
+                          {opponentName || 'Opponent'} wants a rematch!
+                        </Text>
+                      )}
+                      <TouchableOpacity
+                        style={s.playAgainBtn}
+                        activeOpacity={0.85}
+                        onPress={requestRematch}
+                      >
+                        <Text style={s.playAgainText}>Play Again</Text>
+                      </TouchableOpacity>
+                    </>
                   )}
+
                   <TouchableOpacity
-                    style={s.playAgainBtn}
+                    style={s.modalLeaveBtn}
                     activeOpacity={0.85}
-                    onPress={requestRematch}
+                    onPress={handleLeave}
                   >
-                    <Text style={s.playAgainText}>Play Again</Text>
+                    <Text style={s.modalLeaveText}>Leave</Text>
                   </TouchableOpacity>
                 </>
               )}
 
-              <TouchableOpacity
-                style={s.modalLeaveBtn}
-                activeOpacity={0.85}
-                onPress={handleLeave}
-              >
-                <Text style={s.modalLeaveText}>Leave</Text>
-              </TouchableOpacity>
+              {/* Event match over — manual navigation back to bracket,
+                  in addition to the 3s auto-timer in the useEffect above.
+                  Placed INSIDE modalBox so it renders centered like the
+                  rest of the popup, not full-width outside the overlay. */}
+              {isEventMatch && eventMatchOver && (
+                <TouchableOpacity
+                  style={s.modalLeaveBtn}
+                  activeOpacity={0.85}
+                  onPress={() => {
+                    leaveEventRoom();
+                    const eventId = eventInfo?.eventId;
+                    if (eventId) {
+                      navigation.goBack();
+                    }
+                  }}
+                >
+                  <Text style={s.modalLeaveText}>
+                    {isFinalRound ? 'Leave' : 'Back to Bracket'}
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
           </View>
         </Modal>
@@ -473,7 +577,7 @@ const MultiplayerGameScreen = ({ navigation }: Props) => {
               </View>
               <Text style={s.modalTitle}>Leave Game?</Text>
               <Text style={s.modalSubtitle}>
-                Are you sure you want to leave? The room will end for both
+                Are you sure you want to leave? The room will end for both q
                 players.
               </Text>
               <View style={s.confirmBtnRow}>
@@ -484,7 +588,7 @@ const MultiplayerGameScreen = ({ navigation }: Props) => {
                 >
                   <Text style={s.confirmCancelBtnText}>Cancel</Text>
                 </TouchableOpacity>
-                <TouchableOpacity
+                <TouchableOpacity 
                   style={[s.confirmBtn, s.confirmLeaveBtn]}
                   activeOpacity={0.85}
                   onPress={confirmLeave}
@@ -896,7 +1000,7 @@ const s = StyleSheet.create({
   },
   confirmLeaveBtnText: {
     color: '#fff',
-    fontWeight: '700',
+    fontWeight: '700',  
     fontSize: 14.5,
   },
 });

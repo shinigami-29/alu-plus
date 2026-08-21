@@ -22,6 +22,7 @@ import {
   History,
   DoorOpen,
   LogOut,
+Medal,
 } from 'lucide-react-native';
 import Layout from '../../components/AppLayout/Layout';
 import GradientCard from '../../components/GradientCard/GradientCard';
@@ -35,6 +36,8 @@ const ModeScreen = ({ navigation }: Props) => {
   const { user, userProfile } = useAuth();
   const { myName, setMyName, findRandomMatch, incomingInvitations, incomingFriendRequests, multiplayerError, } = useGameLogic();
   const [exitModalVisible, setExitModalVisible] = useState(false);
+  // TEMP: manually change this to 'none' | 'upcoming' | 'live' to preview UI
+const [eventStatus] = useState<'none' | 'upcoming' | 'live'>('upcoming');
   const displayName =
     userProfile?.name ||
     user?.displayName ||
@@ -42,7 +45,7 @@ const ModeScreen = ({ navigation }: Props) => {
     'Guest';
   const photoURL = userProfile?.photoURL || user?.photoURL || null;
 
-  React.useEffect(() => {
+ React.useEffect(() => {
   const resolvedName =
     userProfile?.username ||
     userProfile?.name ||
@@ -53,7 +56,7 @@ const ModeScreen = ({ navigation }: Props) => {
     setMyName(resolvedName);
   }
 }, [userProfile]);
-
+  
   useFocusEffect(
     useCallback(() => {
       const onBackPress = () => {
@@ -183,6 +186,35 @@ const ModeScreen = ({ navigation }: Props) => {
           </Text>
         </TouchableOpacity>
       </View>
+
+      {/* event */}
+    {eventStatus !== 'none' && (
+  <TouchableOpacity
+    style={s.eventTouchable}
+    activeOpacity={0.88}
+    onPress={() => navigation.navigate('CreateEvent')}
+  >
+    <GradientCard
+      colors={['#6C3BAA', '#2E1065']}
+      borderRadius={20}
+      style={s.eventTile}
+    >
+      <View style={s.eventLeft}>
+        <View style={s.eventIconWrap}>
+          <Medal size={24} color="#FFFFFF" />
+        </View>
+        <View>
+          <Text style={s.eventTitle}>Tournament</Text>
+        </View>
+      </View>
+      {eventStatus === 'live' && (
+        <View style={s.eventBadge}>
+          <Text style={s.eventBadgeText}>LIVE</Text>
+        </View>
+      )}
+    </GradientCard>
+  </TouchableOpacity>
+)}
 
       {/* Choose how you want to play */}
       <SectionTitle title="Choose how you want to play" />
@@ -364,6 +396,57 @@ const s = StyleSheet.create({
     fontWeight: '700',
     color: 'rgba(245,240,224,0.92)',
   },
+ eventTouchable: {
+  width: '100%',
+  marginBottom: 20,
+},
+eventTile: {
+  width: '100%',
+  paddingVertical: 16,
+  paddingHorizontal: 18,
+  flexDirection: 'row',
+  alignItems: 'center',
+  justifyContent: 'space-between',
+},
+eventLeft: {
+  flexDirection: 'row',
+  alignItems: 'center',
+  gap: 12,
+  flexShrink: 1,
+},
+eventIconWrap: {
+  width: 44,
+  height: 44,
+  borderRadius: 14,
+  backgroundColor: 'rgba(255,255,255,0.18)',
+  alignItems: 'center',
+  justifyContent: 'center',
+},
+eventTitle: {
+  color: '#FFFFFF',
+  fontWeight: '800',
+  fontSize: 20,
+  //  paddingLeft: 20
+},
+// eventSubtitle: {
+//   color: 'rgba(255,255,255,0.78)',
+//   fontSize: 11,
+//   marginTop: 2,
+//   fontWeight: '500',
+//   paddingLeft: 120
+// },
+eventBadge: {
+  backgroundColor: 'rgba(255,255,255,0.22)',
+  paddingHorizontal: 8,
+  paddingVertical: 4,
+  borderRadius: 8,
+},
+eventBadgeText: {
+  color: '#FFFFFF',
+  fontSize: 10,
+  fontWeight: '800',
+  letterSpacing: 0.5,
+},
   heroTouchable: {
     width: '100%',
   },
