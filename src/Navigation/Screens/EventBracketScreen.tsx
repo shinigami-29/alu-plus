@@ -50,23 +50,8 @@ const EventBracketScreen = ({ navigation, route }: Props) => {
     return () => eventRef.off('value', listener);
   }, [eventId]);
 
-//   useEffect(() => {
-//   if (!myUid) return;
 
-//   for (const roundKey of Object.keys(rounds)) {
-//     const matches = rounds[roundKey];
-//     for (const match of Object.values(matches)) {
-//       const wasInMatch = match.player1 === myUid || match.player2 === myUid;
-//       const iLost = match.status === 'completed' && match.winner && match.winner !== myUid;
-//       if (wasInMatch && iLost) {
-//         setEliminatedVisible(true);
-//         return;
-//       }
-//     }
-//   }
-// }, [rounds, myUid]);
-
-useEffect(() => {
+useEffect(() => { 
   if (!myUid) return;
 
   const finalRoundKey = `round${totalRounds}`;
