@@ -1,5 +1,5 @@
 import React, {createContext, useContext, useEffect, useRef} from 'react';
-import GameLogic from '../Game2/Gamelogic';
+import GameLogic from '../gameLogic/Gamelogic';
 import {NavigationContainerRef} from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
 
