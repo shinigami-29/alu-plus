@@ -209,8 +209,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             importance: AndroidImportance.HIGH,
           }).then(channelId => {
             notifee.displayNotification({
-              title: '🎉 Notification Enabled!',
-              body: 'Alu Plus le tapailai notification pathauna sakcha',
+              title: 'Notification Enabled!',
+              body: 'Alu Plus can now send you notifications',
               android: {
                 channelId,
                 importance: AndroidImportance.HIGH,
@@ -420,12 +420,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       .catch((error: any) => {
         if (error.code === 'auth/credential-already-in-use') {
           throw new Error(
-            'Yo Facebook account pahile nai arko account sanga linked cha.',
+            "This Facebook account is already linked to another account.",
           );
         }
         if (error.code === 'auth/account-exists-with-different-credential') {
           throw new Error(
-            'Yo email pahile nai arko sign-in method bata login bhaisakeko cha. Pahile tyo bata login garnus.',
+            "This email is already registered with a different sign-in method. Please log in using that method first.",
           );
         }
         throw error;

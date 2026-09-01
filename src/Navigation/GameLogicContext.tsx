@@ -77,7 +77,7 @@ export const GameLogicProvider = ({children}: {children: React.ReactNode}) => {
     logic.listenToFriendRequests();
   }, [logic.myName]);
 
-  useEffect(() => {
+ useEffect(() => {
     const messagingInstance = getMessaging();
 
     const unsubscribe = onMessage(messagingInstance, remoteMessage => {
@@ -87,13 +87,28 @@ export const GameLogicProvider = ({children}: {children: React.ReactNode}) => {
           name: 'Default Channel',
           importance: AndroidImportance.HIGH,
         })
-        .then(channelId => {
-          notifee.displayNotification({
+        .then(() =>
+          notifee.createChannel({
+            id: 'silent',
+            name: 'Silent Notifications',
+            importance: AndroidImportance.LOW,
+          }),
+        )
+        .then(() => {
+          const channelId =
+            remoteMessage.data?.channelId === 'silent' ? 'silent' : 'default';
+
+          return notifee.displayNotification({
             title: remoteMessage.notification?.title ?? 'Alu Plus',
             body: remoteMessage.notification?.body ?? '',
-            android: { channelId, importance: AndroidImportance.HIGH },
+            android: {
+              channelId,
+              importance:
+                channelId === 'silent' ? AndroidImportance.LOW : AndroidImportance.HIGH,
+            },
           });
-        });
+        })
+        .catch(err => console.log('Foreground notification FAILED:', err.message));
     });
 
     return unsubscribe;

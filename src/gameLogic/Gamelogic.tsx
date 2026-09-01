@@ -11,17 +11,15 @@ import {
 } from '../components/Utils/bracketGenerator';
 import firestore from '@react-native-firebase/firestore';
 
-// Backend notification API — update NOTIFICATION_API_URL once deployed
-// (currently still pointing at localhost, per your backend status).
-const NOTIFICATION_API_URL = 'http://localhost:3000/send-notification';
+
+const NOTIFICATION_API_URL = 'https://alu-plus-backend.onrender.com/send-notification';
 const NOTIFICATION_API_KEY = 'alu_plus'; // TODO: move to env/config, must match backend's API_SECRET
 
-// Fire-and-forget push notification call. Never blocks or throws into the
-// caller — a failed notification should never break game logic.
 const sendPushNotification = (
   toUsername: string | null | undefined,
   title: string,
   body: string,
+  channelId: string = 'default',
 ) => {
   if (!toUsername) return;
   fetch(NOTIFICATION_API_URL, {
@@ -30,7 +28,7 @@ const sendPushNotification = (
       'Content-Type': 'application/json',
       'x-api-key': NOTIFICATION_API_KEY,
     },
-    body: JSON.stringify({ toUsername, title, body }),
+    body: JSON.stringify({ toUsername, title, body, channelId }),
   }).catch(err => console.log('sendPushNotification FAILED:', err.message));
 };
 
@@ -905,7 +903,7 @@ const maybeAdvanceRound = (eventId: string, roundKey: string) => {
         return;
       }
 
-      const previousData = lastRoomDataRef.current;
+      // const previousData = lastRoomDataRef.current;
 
       roomHasLoadedRef.current = true;
       lastRoomDataRef.current = data;
@@ -952,58 +950,36 @@ const maybeAdvanceRound = (eventId: string, roundKey: string) => {
       setWinner(data.winner ?? null);
       setRoomIsPrivate(!!data.isPrivate);
 
-      // Notify the opponent it's now their turn — only fire when the turn
-      // actually flips to them (avoid re-firing on every unrelated room
-      // update), and only for real head-to-head games, not vs-computer/local.
-      if (
-        previousData &&
-        data.currentTurn &&
-        previousData.currentTurn !== data.currentTurn &&
-        !data.winner &&
-        !data.isDraw &&
-        data.status === 'playing'
-      ) {
-        const turnIsMine = data.currentTurn === myRoleRef.current;
-        if (!turnIsMine) {
-          const opponentUsername = data.host === myName ? data.guest : data.host;
-          sendPushNotification(
-            opponentUsername,
-            'Timro Palo!',
-            `${myName} le move khelchyo — ab timro palo ho!`,
+      if (eventMatchInfoRef.current || data.isEventMatch) {
+        const opponentDisconnected =
+          myRoleRef.current === 'X' ? data.guestDisconnected : data.hostDisconnected;
+
+        if (opponentDisconnected && data.status !== 'event_match_over') {
+          forfeitEventMatch(data.hostUid ?? null, data.guestUid ?? null);
+        } else if (data.winner && data.status !== 'event_match_over' && myRoleRef.current === 'X') {
+          recordEventMatchResult(
+            data.winner,
+            data.hostUid ?? null,
+            data.guestUid ?? null,
+            data.lastFirst ?? 'X',
           );
+        } else if (data.isDraw && myRoleRef.current === 'X') {
+          const nextFirst: Player = (data.lastFirst ?? 'X') === 'X' ? 'O' : 'X';
+          roomRef.current
+            ?.update({
+              board: Array(9).fill(null),
+              currentTurn: nextFirst,
+              winner: null,
+              isDraw: false,
+              lastFirst: nextFirst,
+            })
+            .catch(err => console.log('event draw auto-continue FAILED:', err.message));
         }
       }
 
-         if (eventMatchInfoRef.current || data.isEventMatch) {
-  const opponentDisconnected =
-    myRoleRef.current === 'X' ? data.guestDisconnected : data.hostDisconnected;
-
-  if (opponentDisconnected && data.status !== 'event_match_over') {
-    forfeitEventMatch(data.hostUid ?? null, data.guestUid ?? null);
-  } else if (data.winner && data.status !== 'event_match_over' && myRoleRef.current === 'X') {
-  recordEventMatchResult(
-    data.winner,
-    data.hostUid ?? null,
-    data.guestUid ?? null,
-    data.lastFirst ?? 'X',
-  );
-  } else if (data.isDraw && myRoleRef.current === 'X') {
-    const nextFirst: Player = (data.lastFirst ?? 'X') === 'X' ? 'O' : 'X';
-    roomRef.current
-      ?.update({
-        board: Array(9).fill(null),
-        currentTurn: nextFirst,
-        winner: null,
-        isDraw: false,
-        lastFirst: nextFirst,
-      })
-      .catch(err => console.log('event draw auto-continue FAILED:', err.message));
-  }
-}
-
-if (data.status === 'event_match_over') {
-  setEventMatchOver(true);
-}
+      if (data.status === 'event_match_over') {
+        setEventMatchOver(true);
+      }
 
       if (data.status === 'playing') {
         setGameStarted(true);
@@ -1119,11 +1095,6 @@ if (data.status === 'event_match_over') {
     return cleanup;
   }, [myName]);
 
-  // Periodic sweep for expired invitations. Firebase's on('value') listener
-  // only fires when the DB is written to — if nobody touches the invite
-  // (sender doesn't cancel, receiver doesn't act), no new event will ever
-  // arrive to signal that the TTL has passed. So we re-check locally on an
-  // interval instead of relying purely on DB events.
   useEffect(() => {
     if (!myName) return;
     const id = setInterval(applyInvitationFilter, 15000);
@@ -1744,7 +1715,7 @@ setEventInfo(null);
         sendPushNotification(
           toName,
           'Game Invitation',
-          `${myName} le timilai game khelna invite garyo!`,
+          `${myName} invited you to play!`,
         );
       })
       .catch(err => {
@@ -1934,7 +1905,7 @@ setEventInfo(null);
         sendPushNotification(
           toName,
           'Friend Request',
-          `${myName} le timilai friend request pathayo!`,
+          `${myName} sent you a friend request!`,
         );
       })
       .catch(err => console.log('Friend request FAILED:', err.message));
