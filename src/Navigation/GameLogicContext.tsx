@@ -2,6 +2,8 @@ import React, {createContext, useContext, useEffect, useRef} from 'react';
 import GameLogic from '../gameLogic/Gamelogic';
 import {NavigationContainerRef} from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
+import { getMessaging, onMessage } from '@react-native-firebase/messaging';
+import notifee, { AndroidImportance } from '@notifee/react-native';
 
 type GameLogicType = ReturnType<typeof GameLogic>;
 
@@ -68,12 +70,35 @@ export const GameLogicProvider = ({children}: {children: React.ReactNode}) => {
     };
   }, [logic.screen]);
 
+    useEffect(() => {
+    if (!logic.myName) return;
+    logic.listenToInvitations();
+    logic.listenToSentInvitations();
+    logic.listenToFriendRequests();
+  }, [logic.myName]);
+
   useEffect(() => {
-  if (!logic.myName) return;
-  logic.listenToInvitations();
-  logic.listenToSentInvitations();
-  logic.listenToFriendRequests();
-}, [logic.myName]);
+    const messagingInstance = getMessaging();
+
+    const unsubscribe = onMessage(messagingInstance, remoteMessage => {
+      notifee
+        .createChannel({
+          id: 'default',
+          name: 'Default Channel',
+          importance: AndroidImportance.HIGH,
+        })
+        .then(channelId => {
+          notifee.displayNotification({
+            title: remoteMessage.notification?.title ?? 'Alu Plus',
+            body: remoteMessage.notification?.body ?? '',
+            android: { channelId, importance: AndroidImportance.HIGH },
+          });
+        });
+    });
+
+    return unsubscribe;
+  }, []);
+
 
   return (
     <GameLogicContext.Provider value={logic}>

@@ -28,6 +28,16 @@ import {
 } from '@react-native-firebase/firestore';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { LoginManager, AccessToken, Settings } from 'react-native-fbsdk-next';
+import {
+  getMessaging,
+  getToken,
+  onTokenRefresh,
+} from '@react-native-firebase/messaging';
+import { requestNotifications, RESULTS } from 'react-native-permissions';
+import { Platform, PermissionsAndroid } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import notifee, { AndroidImportance } from '@notifee/react-native';
+
 
 GoogleSignin.configure({
   webClientId:
@@ -36,7 +46,10 @@ GoogleSignin.configure({
 
 const authInstance = getAuth();
 const db = getFirestore();
+const messagingInstance = getMessaging();
 const usersCollection = collection(db, 'users');
+
+const NOTIF_TOAST_SHOWN_KEY = 'notif_enabled_toast_shown';
 
 type UserProfile = {
   uid: string;
@@ -102,15 +115,23 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const profileUnsubscribeRef = React.useRef<(() => void) | null>(null);
+  const tokenRefreshUnsubscribeRef = React.useRef<(() => void) | null>(null);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(authInstance, firebaseUser => {
       setUser(firebaseUser);
       if (firebaseUser) {
         fetchUserProfile(firebaseUser.uid);
+        registerFcmToken(firebaseUser.uid);
+        setupTokenRefreshListener(firebaseUser.uid);
       } else {
         setUserProfile(null);
         setLoading(false);
+
+        if (tokenRefreshUnsubscribeRef.current) {
+          tokenRefreshUnsubscribeRef.current();
+          tokenRefreshUnsubscribeRef.current = null;
+        }
       }
     });
     return unsubscribe;
@@ -120,6 +141,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     return () => {
       if (profileUnsubscribeRef.current) {
         profileUnsubscribeRef.current();
+      }
+      if (tokenRefreshUnsubscribeRef.current) {
+        tokenRefreshUnsubscribeRef.current();
       }
     };
   }, []);
@@ -145,6 +169,82 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     );
 
     profileUnsubscribeRef.current = unsubscribe;
+  };
+
+  // Saves the FCM token to Firestore. Uses merge-set instead of updateDoc
+  // because on a brand-new signup, onAuthStateChanged can fire before the
+  // profile doc's setDoc() in registerWithEmail finishes — updateDoc would
+  // throw "No document to update" in that race. merge-set is safe either way.
+  const saveFcmToken = (uid: string, token: string) => {
+    return setDoc(doc(usersCollection, uid), { fcmToken: token }, { merge: true })
+      .catch(err => {
+        console.log('saveFcmToken error:', err);
+      });
+  };
+
+  const registerFcmToken = (uid: string) => {
+    const permissionPromise =
+      Platform.OS === 'android' && Platform.Version >= 33
+        ? PermissionsAndroid.request(
+            PermissionsAndroid.PERMISSIONS.POST_NOTIFICATIONS,
+          ).then(granted => granted === PermissionsAndroid.RESULTS.GRANTED)
+        : Platform.OS === 'ios'
+        ? requestNotifications(['alert', 'sound']).then(
+            ({ status }) => status === RESULTS.GRANTED,
+          )
+        : Promise.resolve(true);
+
+    return permissionPromise
+      .then(enabled => {
+        if (!enabled) return null;
+
+        // Only show the "enabled" toast once ever (per device), not on
+        // every login/app restart
+        AsyncStorage.getItem(NOTIF_TOAST_SHOWN_KEY).then(shown => {
+          if (shown) return;
+
+          notifee.createChannel({
+            id: 'default',
+            name: 'Default Channel',
+            importance: AndroidImportance.HIGH,
+          }).then(channelId => {
+            notifee.displayNotification({
+              title: '🎉 Notification Enabled!',
+              body: 'Alu Plus le tapailai notification pathauna sakcha',
+              android: {
+                channelId,
+                importance: AndroidImportance.HIGH,
+              },
+            });
+          });
+
+          AsyncStorage.setItem(NOTIF_TOAST_SHOWN_KEY, 'true').catch(() => {});
+        });
+
+        return getToken(messagingInstance);
+      })
+      .then(token => {
+        if (token) {
+          return saveFcmToken(uid, token);
+        }
+      })
+      .catch(err => {
+        console.log('registerFcmToken error:', err);
+      });
+  };
+
+  // FCM tokens can rotate (app reinstall, cache clear, token expiry).
+  // Keep Firestore in sync whenever that happens for the logged-in user.
+  const setupTokenRefreshListener = (uid: string) => {
+    if (tokenRefreshUnsubscribeRef.current) {
+      tokenRefreshUnsubscribeRef.current();
+    }
+
+    const unsubscribe = onTokenRefresh(messagingInstance, newToken => {
+      saveFcmToken(uid, newToken);
+    });
+
+    tokenRefreshUnsubscribeRef.current = unsubscribe;
   };
 
   const registerWithEmail = (
@@ -242,10 +342,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     email: string | null;
     photoURL: string | null;
   }> => {
+    type FacebookGraphResponse = {
+      name?: string;
+      email?: string;
+      picture?: { data?: { url?: string } };
+    };
+
     return fetch(
       `https://graph.facebook.com/me?fields=id,name,email,picture.type(large)&access_token=${accessToken}`,
     )
-      .then(res => res.json())
+      .then(res => res.json() as Promise<FacebookGraphResponse>)
       .then(json => ({
         name: json?.name ?? '',
         email: json?.email ?? null,
@@ -265,11 +371,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       email: null,
       photoURL: null,
     };
-
-    // Clear cached FB session — otherwise Facebook shows its own native
-    // "You previously logged in..." account picker. Our app can't determine
-    // whether this is a new user or a returning one, because this is a
-    // device-level session that belongs to the Facebook app/browser, not our app.
     LoginManager.logOut();
 
     return LoginManager.logInWithPermissions(['public_profile', 'email'])
@@ -291,18 +392,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         return fetchFacebookProfile(data.accessToken).then(profile => {
           fbProfile = profile;
 
-          // If already signed in with another provider (Google), link
-          // the Facebook credential directly to that current user
           const currentUser = authInstance.currentUser;
           const signInPromise = currentUser
             ? linkWithCredential(currentUser, facebookCredential)
             : signInWithCredential(authInstance, facebookCredential);
-
-          // Also update Firebase Auth's currentUser.photoURL/displayName —
-          // otherwise linkWithCredential/signInWithCredential won't populate
-          // FB's name/photo onto auth().currentUser, and GameLogic.tsx relies
-          // on auth().currentUser?.photoURL everywhere (leaderboard, room,
-          // invitation, random match)
+        
           return signInPromise.then(async result => {
             const fbAuthUser = result.user;
 
@@ -355,10 +449,6 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
               ),
             );
           }
-
-          // Existing user: only apply Facebook's photo if they haven't
-          // manually set an avatarId. Don't overwrite the name — the
-          // user may have changed it inside the app already
           const existing = snap.data();
           if (!existing?.avatarId && photoURL) {
             return updateDoc(userDoc, { photoURL }).catch(() => {});

@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Player, BoxCell, Screen } from './Type';
 import database, {
@@ -9,6 +10,29 @@ import {
   generateNextRound,
 } from '../components/Utils/bracketGenerator';
 import firestore from '@react-native-firebase/firestore';
+
+// Backend notification API — update NOTIFICATION_API_URL once deployed
+// (currently still pointing at localhost, per your backend status).
+const NOTIFICATION_API_URL = 'http://localhost:3000/send-notification';
+const NOTIFICATION_API_KEY = 'alu_plus'; // TODO: move to env/config, must match backend's API_SECRET
+
+// Fire-and-forget push notification call. Never blocks or throws into the
+// caller — a failed notification should never break game logic.
+const sendPushNotification = (
+  toUsername: string | null | undefined,
+  title: string,
+  body: string,
+) => {
+  if (!toUsername) return;
+  fetch(NOTIFICATION_API_URL, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'x-api-key': NOTIFICATION_API_KEY,
+    },
+    body: JSON.stringify({ toUsername, title, body }),
+  }).catch(err => console.log('sendPushNotification FAILED:', err.message));
+};
 
 const GameLogic = (myAvatarId?: string | null, myPhoto?: string | null) => {
   const [board, setBoard] = useState<BoxCell[]>(Array(9).fill(null));
@@ -881,6 +905,8 @@ const maybeAdvanceRound = (eventId: string, roundKey: string) => {
         return;
       }
 
+      const previousData = lastRoomDataRef.current;
+
       roomHasLoadedRef.current = true;
       lastRoomDataRef.current = data;
 
@@ -925,6 +951,28 @@ const maybeAdvanceRound = (eventId: string, roundKey: string) => {
       setCurrentPlayer(data.currentTurn ?? 'X');
       setWinner(data.winner ?? null);
       setRoomIsPrivate(!!data.isPrivate);
+
+      // Notify the opponent it's now their turn — only fire when the turn
+      // actually flips to them (avoid re-firing on every unrelated room
+      // update), and only for real head-to-head games, not vs-computer/local.
+      if (
+        previousData &&
+        data.currentTurn &&
+        previousData.currentTurn !== data.currentTurn &&
+        !data.winner &&
+        !data.isDraw &&
+        data.status === 'playing'
+      ) {
+        const turnIsMine = data.currentTurn === myRoleRef.current;
+        if (!turnIsMine) {
+          const opponentUsername = data.host === myName ? data.guest : data.host;
+          sendPushNotification(
+            opponentUsername,
+            'Timro Palo!',
+            `${myName} le move khelchyo — ab timro palo ho!`,
+          );
+        }
+      }
 
          if (eventMatchInfoRef.current || data.isEventMatch) {
   const opponentDisconnected =
@@ -1693,6 +1741,11 @@ setEventInfo(null);
       })
       .then(() => {
         console.log('Invitation sent to:', toName);
+        sendPushNotification(
+          toName,
+          'Game Invitation',
+          `${myName} le timilai game khelna invite garyo!`,
+        );
       })
       .catch(err => {
         console.log('FIREBASE WRITE FAILED:', err.message);
@@ -1876,7 +1929,14 @@ setEventInfo(null);
         status: 'pending',
         timestamp: database.ServerValue.TIMESTAMP,
       })
-      .then(() => console.log('Friend request sent to', toName))
+      .then(() => {
+        console.log('Friend request sent to', toName);
+        sendPushNotification(
+          toName,
+          'Friend Request',
+          `${myName} le timilai friend request pathayo!`,
+        );
+      })
       .catch(err => console.log('Friend request FAILED:', err.message));
   };
 
