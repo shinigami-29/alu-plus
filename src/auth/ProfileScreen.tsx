@@ -23,7 +23,13 @@ type Props = { navigation: NativeStackNavigationProp<any> };
 const ProfileScreen = ({ navigation }: Props) => {
   const { user, userProfile, updateProfile, logout, refreshProfile } =
     useAuth();
-  const { myName, setMyName, renameUsernameEverywhere, updateLeaderboardName   } = useGameLogic();
+  const {
+    myName,
+    setMyName,
+    renameUsernameEverywhere,
+    updateLeaderboardName,
+    stopAllFirebaseListeners,
+  } = useGameLogic();
 
   const displayName =
     userProfile?.name ||
@@ -104,11 +110,21 @@ const ProfileScreen = ({ navigation }: Props) => {
     setLogoutModalVisible(true);
   };
 
+  // Turns off every active Firebase Realtime Database listener BEFORE
+  // signing the user out. Without this, listeners opened elsewhere in
+  // GameLogic (rooms, presence, invitations, etc.) keep firing after the
+  // auth token is gone, which Firebase rules then reject with a
+  // "Permission denied" error on the login screen.
   const confirmLogout = () => {
     setLogoutModalVisible(false);
-    logout().then(() => {
-      navigation.replace('Login');
-    });
+    stopAllFirebaseListeners();
+    logout()
+      .then(() => {
+        navigation.replace('Login');
+      })
+      .catch(err => {
+        console.log('Logout FAILED:', err.message);
+      });
   };
 
   const handleSelectAvatar = (avatarId: string) => {

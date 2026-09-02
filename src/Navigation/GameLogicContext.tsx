@@ -2,14 +2,60 @@ import React, {createContext, useContext, useEffect, useRef} from 'react';
 import GameLogic from '../gameLogic/Gamelogic';
 import {NavigationContainerRef} from '@react-navigation/native';
 import { useAuth } from '../context/AuthContext';
-import { getMessaging, onMessage } from '@react-native-firebase/messaging';
-import notifee, { AndroidImportance } from '@notifee/react-native';
+import { getApp } from '@react-native-firebase/app';
+import { getMessaging, onMessage, getInitialNotification, onNotificationOpenedApp } from '@react-native-firebase/messaging';
+import notifee, { AndroidImportance, EventType } from '@notifee/react-native';
 
 type GameLogicType = ReturnType<typeof GameLogic>;
 
 const GameLogicContext = createContext<GameLogicType | any>(null);
 
 export const navigationRef = React.createRef<NavigationContainerRef<any>>();
+
+// Reads the notification data and navigates to the right screen.
+// Called from three places: killed state, background state, and foreground tap.
+const handleNotificationNavigation = (data?: { [key: string]: string | object }) => {
+  if (!data) return;
+
+  const tryNavigate = () => {
+    if (!navigationRef.current) {
+      setTimeout(tryNavigate, 300);
+      return;
+    }
+
+    if (data.type === 'invite') {
+      navigationRef.current.navigate('Invitation' as never);
+    } else if (data.type === 'friend_request') {
+      navigationRef.current.navigate('Multiplayer' as never);
+    }
+  };
+
+  tryNavigate();
+};
+
+// All notification channels are created here in one place to avoid duplication
+const ensureNotificationChannels = async () => {
+  await notifee.createChannel({
+    id: 'default',
+    name: 'Default Channel',
+    importance: AndroidImportance.HIGH,
+  });
+  await notifee.createChannel({
+    id: 'silent',
+    name: 'Silent Notifications',
+    importance: AndroidImportance.LOW,
+  });
+  await notifee.createChannel({
+    id: 'game_invites',
+    name: 'Game Invites',
+    importance: AndroidImportance.HIGH,
+  });
+  await notifee.createChannel({
+    id: 'friend_requests',
+    name: 'Friend Requests',
+    importance: AndroidImportance.HIGH,
+  });
+};
 
 export const GameLogicProvider = ({children}: {children: React.ReactNode}) => {
   const { userProfile } = useAuth();
@@ -78,40 +124,63 @@ export const GameLogicProvider = ({children}: {children: React.ReactNode}) => {
   }, [logic.myName]);
 
  useEffect(() => {
-    const messagingInstance = getMessaging();
+    const messagingInstance = getMessaging(getApp());
 
-    const unsubscribe = onMessage(messagingInstance, remoteMessage => {
-      notifee
-        .createChannel({
-          id: 'default',
-          name: 'Default Channel',
-          importance: AndroidImportance.HIGH,
-        })
-        .then(() =>
-          notifee.createChannel({
-            id: 'silent',
-            name: 'Silent Notifications',
-            importance: AndroidImportance.LOW,
-          }),
-        )
+    // Notification arrives while the app is open (foreground) — show the custom UI
+    const unsubscribeOnMessage = onMessage(messagingInstance, remoteMessage => {
+      ensureNotificationChannels()
         .then(() => {
-          const channelId =
-            remoteMessage.data?.channelId === 'silent' ? 'silent' : 'default';
+          const incomingChannelId = remoteMessage.data?.channelId as string | undefined;
+          const validChannels = ['default', 'silent', 'game_invites', 'friend_requests'];
+          const channelId = validChannels.includes(incomingChannelId ?? '')
+            ? incomingChannelId!
+            : 'default';
 
           return notifee.displayNotification({
             title: remoteMessage.notification?.title ?? 'Alu Plus',
             body: remoteMessage.notification?.body ?? '',
+            data: remoteMessage.data,
             android: {
               channelId,
               importance:
                 channelId === 'silent' ? AndroidImportance.LOW : AndroidImportance.HIGH,
+              pressAction: {
+                id: 'default',
+                launchActivity: 'default',
+              },
             },
           });
         })
         .catch(err => console.log('Foreground notification FAILED:', err.message));
     });
 
-    return unsubscribe;
+    // Check whether the app was opened from a fully closed (quit) state by tapping a notification
+    getInitialNotification(messagingInstance).then(remoteMessage => {
+      if (remoteMessage) {
+        console.log('App opened from quit state by notification:', remoteMessage);
+        handleNotificationNavigation(remoteMessage.data);
+      }
+    });
+
+    // App was in the background and got brought to the foreground by a notification tap
+    const unsubscribeOnOpenedApp = onNotificationOpenedApp(messagingInstance, remoteMessage => {
+      console.log('App opened from background by notification:', remoteMessage);
+      handleNotificationNavigation(remoteMessage.data);
+    });
+
+    // App was open (foreground) and the notifee-displayed notification was tapped
+    const unsubscribeForegroundEvent = notifee.onForegroundEvent(({ type, detail }) => {
+      if (type === EventType.PRESS) {
+        console.log('Foreground notification tapped:', detail.notification);
+        handleNotificationNavigation(detail.notification?.data as { [key: string]: string } | undefined);
+      }
+    });
+
+    return () => {
+      unsubscribeOnMessage();
+      unsubscribeOnOpenedApp();
+      unsubscribeForegroundEvent();
+    };
   }, []);
 
 
@@ -129,4 +198,5 @@ export const useGameLogic = (): GameLogicType => {
     throw new Error('useGameLogic must be used within GameLogicProvider');
   }
   return ctx; 
-};  //ctx  = conetext
+};  //ctx = context
+

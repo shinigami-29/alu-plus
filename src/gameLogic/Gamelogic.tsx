@@ -1,4 +1,3 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Player, BoxCell, Screen } from './Type';
 import database, {
@@ -13,13 +12,14 @@ import firestore from '@react-native-firebase/firestore';
 
 
 const NOTIFICATION_API_URL = 'https://alu-plus-backend.onrender.com/send-notification';
-const NOTIFICATION_API_KEY = 'alu_plus'; // TODO: move to env/config, must match backend's API_SECRET
+const NOTIFICATION_API_KEY = 'alu_plus'; //must match backend's API_SECRET
 
 const sendPushNotification = (
   toUsername: string | null | undefined,
   title: string,
   body: string,
   channelId: string = 'default',
+   extraData: Record<string, string> = {},
 ) => {
   if (!toUsername) return;
   fetch(NOTIFICATION_API_URL, {
@@ -28,7 +28,7 @@ const sendPushNotification = (
       'Content-Type': 'application/json',
       'x-api-key': NOTIFICATION_API_KEY,
     },
-    body: JSON.stringify({ toUsername, title, body, channelId }),
+    body: JSON.stringify({ toUsername, title, body, channelId, ...extraData }),
   }).catch(err => console.log('sendPushNotification FAILED:', err.message));
 };
 
@@ -154,6 +154,7 @@ const [eventInfo, setEventInfo] = useState<{ eventId: string; roundKey: string; 
   const presenceRefsRef = useRef<
     Record<string, FirebaseDatabaseTypes.Reference>
   >({});
+  const presenceCleanupRef = useRef<(() => void) | null>(null);
 
   const invitationsListenerRef = useRef<FirebaseDatabaseTypes.Reference | null>(
     null,
@@ -171,9 +172,6 @@ const [eventInfo, setEventInfo] = useState<{ eventId: string; roundKey: string; 
 } | null>(null);
 const eventBracketResultKeyRef = useRef<string | null>(null);
   const gameStartedRef = useRef(false);
-  // Raw invitation snapshot cache — used by the periodic expiry sweep below,
-  // since the on('value') listener only fires on a DB write, not on the
-  // passage of time.
   const rawInvitationsRef = useRef<any>(null);
   const INVITE_TTL_MS = 60 * 1000; // invitations auto-expire after 1 minute
 
@@ -535,7 +533,6 @@ const eventBracketResultKeyRef = useRef<string | null>(null);
 
 
   // event satrt
-
 const startEventMatch = (
   eventId: string,
   roundKey: string,
@@ -1121,6 +1118,11 @@ const maybeAdvanceRound = (eventId: string, roundKey: string) => {
     const onConnectedChange = (snap: FirebaseDatabaseTypes.DataSnapshot) => {
       if (snap.val() === false) return;
 
+       if (!auth().currentUser) {
+        // Auth hasn't finished restoring yet.
+        return;
+      }
+
        myStatusRef.onDisconnect().set({
     state: 'offline',
     last_changed: database.ServerValue.TIMESTAMP,
@@ -1140,20 +1142,29 @@ const maybeAdvanceRound = (eventId: string, roundKey: string) => {
     };
 
     connectedRef.on('value', onConnectedChange);
-    return () => {
-      connectedRef.off('value', onConnectedChange);
 
+     const unsubscribeAuth = auth().onAuthStateChanged(user => {
+      if (user) {
+        connectedRef.once('value').then(onConnectedChange);
+      }
+    });
+    
+     const cleanup = () => {
+      connectedRef.off('value', onConnectedChange);
+      unsubscribeAuth();
       if (!auth().currentUser) return;
       myStatusRef
         .set({
           state: 'offline',
           last_changed: database.ServerValue.TIMESTAMP,
         })
-        .catch(err =>
-          console.log('setupPresence cleanup FAILED:', err.message),
-        );
+        .catch(err => console.log('setupPresence cleanup FAILED:', err.message));
     };
+
+    presenceCleanupRef.current = cleanup;
+    return cleanup;
   };
+  
 
   // Subscribes to presence for a given list of names (friends + recent opponents)
   const listenToPresence = (names: string[]) => {
@@ -1695,10 +1706,10 @@ setEventInfo(null);
 
     // Don't send an invite to someone we already know is offline —
     // avoids a guaranteed-dead invite sitting in their inbox.
-    if (onlineStatus[toName] === false) {
-      setMultiplayerError(`${toName} is offline right now.`);
-      return;
-    }
+    // if (onlineStatus[toName] === false) {
+    //   setMultiplayerError(`${toName} is offline right now.`);
+    //   return;
+    // }
 
     database()
       .ref(`/invitations/${toName}/${myName}`)
@@ -1714,8 +1725,10 @@ setEventInfo(null);
         console.log('Invitation sent to:', toName);
         sendPushNotification(
           toName,
-          'Game Invitation',
-          `${myName} invited you to play!`,
+          '🎮 Game Invite!',
+          `${myName} just challenged you — accept and prove you're better!`,
+          'game_invites',
+          { type: 'invite', fromName: myName },
         );
       })
       .catch(err => {
@@ -1900,12 +1913,15 @@ setEventInfo(null);
         status: 'pending',
         timestamp: database.ServerValue.TIMESTAMP,
       })
-      .then(() => {
+       .then(() => {
         console.log('Friend request sent to', toName);
         sendPushNotification(
           toName,
-          'Friend Request',
-          `${myName} sent you a friend request!`,
+          '🤝 New Friend Request',
+          `${myName} wants to team up with you on Alu Cross!`,
+          'friend_requests',
+            { type: 'friend_request', fromName: myName },
+
         );
       })
       .catch(err => console.log('Friend request FAILED:', err.message));
@@ -2139,7 +2155,7 @@ setEventInfo(null);
       const info = data[toName];
       if (info.status === 'accepted' && info.roomCode) {
         if (
-          roomRef.current &&
+           gameStartedRef.current &&
           roomCodeRef.current &&
           info.roomCode !== roomCodeRef.current
         ) {
@@ -2462,6 +2478,51 @@ setEventInfo(null);
     });
   };
 
+  // Turns off every active Firebase Realtime Database listener this hook
+  // has opened. MUST be called right before logout, otherwise listeners
+  const stopAllFirebaseListeners = () => {
+
+     if (presenceCleanupRef.current) {   
+    presenceCleanupRef.current();
+    presenceCleanupRef.current = null;
+  }
+
+    if (roomsListenerRef.current) {
+      roomsListenerRef.current.off();
+      roomsListenerRef.current = null;
+    }
+    if (friendReqListenerRef.current) {
+      friendReqListenerRef.current.off();
+      friendReqListenerRef.current = null;
+    }
+    if (invitationsListenerRef.current) {
+      invitationsListenerRef.current.off();
+      invitationsListenerRef.current = null;
+    }
+    if (sentInvListenerRef.current) {
+      sentInvListenerRef.current.off();
+      sentInvListenerRef.current = null;
+    }
+    if (roomRef.current) {
+      roomRef.current.off();
+      roomRef.current.onDisconnect().cancel().catch(() => {});
+      roomRef.current = null;
+    }
+    if (randomMatchRef.current) {
+      randomMatchRef.current.off();
+      randomMatchRef.current.onDisconnect().cancel().catch(() => {});
+      randomMatchRef.current = null;
+    }
+
+    // presence listeners (one per friend/opponent)
+    Object.keys(presenceRefsRef.current).forEach(name => {
+      presenceRefsRef.current[name].off();
+    });
+    presenceRefsRef.current = {};
+
+    listenedCodeRef.current = null;
+  };
+
   return {
     board,
     currentPlayer,
@@ -2535,7 +2596,8 @@ setEventInfo(null);
      forfeitEventMatch,
       isEventMatch,
   eventInfo,
-   INVITE_TTL_MS
+   INVITE_TTL_MS,
+   stopAllFirebaseListeners,
   };
 };
 

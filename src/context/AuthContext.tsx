@@ -38,7 +38,6 @@ import { Platform, PermissionsAndroid } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import notifee, { AndroidImportance } from '@notifee/react-native';
 
-
 GoogleSignin.configure({
   webClientId:
     '603350820884-4urjapll9a70ofb55kdmlnhraldoscb7.apps.googleusercontent.com',
@@ -128,6 +127,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setUserProfile(null);
         setLoading(false);
 
+        if (profileUnsubscribeRef.current) {
+          profileUnsubscribeRef.current();
+          profileUnsubscribeRef.current = null;
+        }
+
         if (tokenRefreshUnsubscribeRef.current) {
           tokenRefreshUnsubscribeRef.current();
           tokenRefreshUnsubscribeRef.current = null;
@@ -176,10 +180,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   // profile doc's setDoc() in registerWithEmail finishes — updateDoc would
   // throw "No document to update" in that race. merge-set is safe either way.
   const saveFcmToken = (uid: string, token: string) => {
-    return setDoc(doc(usersCollection, uid), { fcmToken: token }, { merge: true })
-      .catch(err => {
-        console.log('saveFcmToken error:', err);
-      });
+    return setDoc(
+      doc(usersCollection, uid),
+      { fcmToken: token },
+      { merge: true },
+    ).catch(err => {
+      console.log('saveFcmToken error:', err);
+    });
   };
 
   const registerFcmToken = (uid: string) => {
@@ -203,20 +210,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         AsyncStorage.getItem(NOTIF_TOAST_SHOWN_KEY).then(shown => {
           if (shown) return;
 
-          notifee.createChannel({
-            id: 'default',
-            name: 'Default Channel',
-            importance: AndroidImportance.HIGH,
-          }).then(channelId => {
-            notifee.displayNotification({
-              title: 'Notification Enabled!',
-              body: 'Alu Plus can now send you notifications',
-              android: {
-                channelId,
-                importance: AndroidImportance.HIGH,
-              },
+          notifee
+            .createChannel({
+              id: 'default',
+              name: 'Default Channel',
+              importance: AndroidImportance.HIGH,
+            })
+            .then(channelId => {
+              notifee.displayNotification({
+                title: 'Notification Enabled!',
+                body: 'Alu Plus can now send you notifications',
+                android: {
+                  channelId,
+                  importance: AndroidImportance.HIGH,
+                },
+              });
             });
-          });
 
           AsyncStorage.setItem(NOTIF_TOAST_SHOWN_KEY, 'true').catch(() => {});
         });
@@ -253,8 +262,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     name: string,
     username: string,
   ) => {
-    return createUserWithEmailAndPassword(authInstance, email, password)
-      .then(({ user: newUser }) => {
+    return createUserWithEmailAndPassword(authInstance, email, password).then(
+      ({ user: newUser }) => {
         return setDoc(
           doc(usersCollection, newUser.uid),
           buildDefaultProfile(newUser.uid, name, username, email, null),
@@ -265,7 +274,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             console.log('sendEmailVerification error:', err),
           );
         });
-      });
+      },
+    );
   };
 
   const loginWithEmail = (email: string, password: string) => {
@@ -396,7 +406,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           const signInPromise = currentUser
             ? linkWithCredential(currentUser, facebookCredential)
             : signInWithCredential(authInstance, facebookCredential);
-        
+
           return signInPromise.then(async result => {
             const fbAuthUser = result.user;
 
@@ -420,12 +430,12 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       .catch((error: any) => {
         if (error.code === 'auth/credential-already-in-use') {
           throw new Error(
-            "This Facebook account is already linked to another account.",
+            'This Facebook account is already linked to another account.',
           );
         }
         if (error.code === 'auth/account-exists-with-different-credential') {
           throw new Error(
-            "This email is already registered with a different sign-in method. Please log in using that method first.",
+            'This email is already registered with a different sign-in method. Please log in using that method first.',
           );
         }
         throw error;
