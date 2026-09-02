@@ -11,32 +11,50 @@ type Invitation = {
   timestamp?: number;
 };
 
+type EventInvitation = {
+  from: string;
+  eventId: string;
+  eventCode: string;
+  fromAvatarId: string | null;
+  fromPhoto: string | null;
+  timestamp: number;
+};
+
 type Props = {
   invitations: Invitation[];
   friendRequests: Invitation[];
+  eventInvitations?: EventInvitation[];
   navigation: NativeStackNavigationProp<any>;
 };
 
-const InviteToast = ({ invitations, friendRequests, navigation }: Props) => {
+const InviteToast = ({
+  invitations,
+  friendRequests,
+  eventInvitations = [],
+  navigation,
+}: Props) => {
   const {
     acceptInvitation,
     rejectInvitation,
     acceptFriendRequest,
     rejectFriendRequest,
+    rejectEventInvite,
   } = useGameLogic();
 
   const insets = useSafeAreaInsets();
 
   const [visible, setVisible] = useState(false);
   const [message, setMessage] = useState('');
-  const [toastType, setToastType] = useState<'invite' | 'friend' | null>(null);
+  const [toastType, setToastType] = useState<'invite' | 'friend' | 'tournament' | null>(null);
   const [activeFrom, setActiveFrom] = useState<string | null>(null);
+  const [activeEventId, setActiveEventId] = useState<string | null>(null);
 
   const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   // हरेक "from" को पछिल्लो देखिसकेको timestamp — यसैबाट थाहा हुन्छ नयाँ हो कि पुरानै
   const seenInviteRef = useRef<Map<string, number>>(new Map());
   const seenFriendRef = useRef<Map<string, number>>(new Map());
+  const seenEventRef = useRef<Map<string, number>>(new Map());
   const isFirstRun = useRef(true);
 
   const startAutoDismiss = () => {
@@ -54,6 +72,9 @@ const InviteToast = ({ invitations, friendRequests, navigation }: Props) => {
       );
       friendRequests.forEach(req =>
         seenFriendRef.current.set(req.from, req.timestamp ?? 0),
+      );
+      eventInvitations.forEach(ev =>
+        seenEventRef.current.set(ev.from, ev.timestamp ?? 0),
       );
       return;
     }
@@ -86,6 +107,41 @@ const InviteToast = ({ invitations, friendRequests, navigation }: Props) => {
       setMessage(`${inv.from} invited you to play!`);
       setToastType('invite');
       setActiveFrom(inv.from);
+      setActiveEventId(null);
+      setVisible(true);
+      startAutoDismiss();
+      return;
+    }
+
+    // ---- Tournament invites: उस्तै logic ----
+    const currentEventFroms = new Set(eventInvitations.map(i => i.from));
+    seenEventRef.current.forEach((_, from) => {
+      if (!currentEventFroms.has(from)) seenEventRef.current.delete(from);
+    });
+
+    let newestNewEvent: EventInvitation | null = null;
+    eventInvitations.forEach(ev => {
+      const ts = ev.timestamp ?? 0;
+      const seenTs = seenEventRef.current.get(ev.from);
+      const isNew = seenTs === undefined || ts > seenTs;
+      if (
+        isNew &&
+        (!newestNewEvent || ts >= (newestNewEvent.timestamp ?? 0))
+      ) {
+        newestNewEvent = ev;
+      }
+    });
+
+    eventInvitations.forEach(ev =>
+      seenEventRef.current.set(ev.from, ev.timestamp ?? 0),
+    );
+
+    if (newestNewEvent) {
+      const ev = newestNewEvent as EventInvitation;
+      setMessage(`${ev.from} invited you to a tournament!`);
+      setToastType('tournament');
+      setActiveFrom(ev.from);
+      setActiveEventId(ev.eventId);
       setVisible(true);
       startAutoDismiss();
       return;
@@ -119,10 +175,11 @@ const InviteToast = ({ invitations, friendRequests, navigation }: Props) => {
       setMessage(`${req.from} sent you a friend request!`);
       setToastType('friend');
       setActiveFrom(req.from);
+      setActiveEventId(null);
       setVisible(true);
       startAutoDismiss();
     }
-  }, [invitations, friendRequests]);
+  }, [invitations, friendRequests, eventInvitations]);
 
   useEffect(() => {
     return () => {
@@ -137,6 +194,8 @@ const InviteToast = ({ invitations, friendRequests, navigation }: Props) => {
     if (toastType === 'friend') {
       navigation.navigate('Invitation', { initialTab: 'requests' });
     } else {
+      // both game invites and tournament invites live in the merged
+      // "invites" tab now
       navigation.navigate('Invitation', { initialTab: 'invites' });
     }
   };
@@ -144,6 +203,13 @@ const InviteToast = ({ invitations, friendRequests, navigation }: Props) => {
   const handleAccept = () => {
     if (toastType === 'friend') {
       acceptFriendRequest(activeFrom);
+    } else if (toastType === 'tournament') {
+      if (!activeEventId) return;
+      // Same pattern as InvitationScreen's handleAcceptEvent: clear the
+      // invite and navigate — EventLobbyScreen's auto-join effect adds
+      // this user as a participant the moment it mounts.
+      rejectEventInvite(activeFrom);
+      navigation.navigate('EventLobby', { eventId: activeEventId });
     } else {
       acceptInvitation(activeFrom);
     }
@@ -153,6 +219,8 @@ const InviteToast = ({ invitations, friendRequests, navigation }: Props) => {
   const handleDecline = () => {
     if (toastType === 'friend') {
       rejectFriendRequest(activeFrom);
+    } else if (toastType === 'tournament') {
+      rejectEventInvite(activeFrom);
     } else {
       rejectInvitation(activeFrom);
     }

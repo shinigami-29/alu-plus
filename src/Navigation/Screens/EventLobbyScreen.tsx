@@ -7,13 +7,16 @@ import {
   FlatList,
   Alert,
   RefreshControl,
+  Modal,
 } from 'react-native';
 import database from '@react-native-firebase/database';
 import { useAuth } from '../../context/AuthContext';
+import { useGameLogic } from '../GameLogicContext';
 import Layout from '../../components/AppLayout/Layout';
 import GradientCard from '../../components/GradientCard/GradientCard';
-import { Users, Check, Crown, Copy } from 'lucide-react-native';
+import { Users, Check, Crown, Copy, UserPlus, X as XIcon } from 'lucide-react-native';
 import { generateBracketRound1 } from '../../components/Utils/bracketGenerator';
+import Toast from '../../components/Toast/Toast';
 
 type Participant = {
   uid: string;
@@ -33,11 +36,17 @@ const MAX_PLAYERS = 20;
 const EventLobbyScreen = ({ navigation, route }: Props) => {
   const { eventId } = route.params as { eventId: string };
   const { user, userProfile } = useAuth();
+  const { gameFriends, fetchGameFriends, sendEventInvite } = useGameLogic();
   const [participants, setParticipants] = useState<Participant[]>([]);
   const [hostUid, setHostUid] = useState<string | null>(null);
   const [eventCode, setEventCode] = useState('');
   const [starting, setStarting] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [toastMsg, setToastMsg] = useState('');
+
+  // Invite Friends modal state
+  const [inviteModalVisible, setInviteModalVisible] = useState(false);
+  // const [invitedNames, setInvitedNames] = useState<Set<string>>(new Set());
 
   // Prevents the auto-join effect from re-adding the user right after they leave
   const isLeavingRef = useRef(false);
@@ -53,6 +62,9 @@ const EventLobbyScreen = ({ navigation, route }: Props) => {
   const allReady =
     participants.length >= MIN_PLAYERS &&
     participants.filter((p) => p.uid !== hostUid).every((p) => p.ready);
+
+  // Names already in the lobby — used to hide/disable "Invite" for them
+  const participantNames = new Set(participants.map((p) => p.name));
 
   const applyEventSnapshot = (data: any) => {
     if (!data) return;
@@ -91,16 +103,21 @@ const EventLobbyScreen = ({ navigation, route }: Props) => {
     if (!myUid || isLeavingRef.current) return;
     const alreadyIn = participants.some((p) => p.uid === myUid);
     if (!alreadyIn && participants.length < MAX_PLAYERS) {
-      database()
-        .ref(`events/${eventId}/participants/${myUid}`)
-        .set({
-          name: userProfile?.name || user?.displayName || 'Guest',
-          avatarId: userProfile?.avatarId || null,
-          ready: false,
-          joinedAt: Date.now(),
-        });
+     database()
+  .ref(`events/${eventId}/participants/${myUid}`)
+  .set({
+    name: userProfile?.username || userProfile?.name || user?.displayName || 'Guest',
+    avatarId: userProfile?.avatarId || null,
+    ready: false,
+    joinedAt: Date.now(),
+  });
     }
   }, [participants.length]);
+
+  // Load friends list for the Invite modal
+  useEffect(() => {
+    fetchGameFriends();
+  }, []);
 
   const handleRefresh = useCallback(() => {
     setRefreshing(true);
@@ -186,6 +203,21 @@ const EventLobbyScreen = ({ navigation, route }: Props) => {
       });
   };
 
+  // const handleInviteFriend = (name: string) => {
+  //   sendEventInvite(name, eventId, eventCode);
+  //   setInvitedNames((prev) => {
+  //     const next = new Set(prev);
+  //     next.add(name);
+  //     return next;
+  //   });
+  //     setToastMsg(`Invite has been sent to ${name}`);
+  // };
+
+  const handleInviteFriend = (name: string) => {
+  sendEventInvite(name, eventId, eventCode);
+  setToastMsg(`Invite has been sent to ${name}`);
+};
+
   const renderParticipant = ({ item }: { item: Participant }) => (
     <View style={s.participantRow}>
       <View style={s.participantLeft}>
@@ -208,6 +240,70 @@ const EventLobbyScreen = ({ navigation, route }: Props) => {
     </View>
   );
 
+  // const renderFriendItem = ({
+  //   item,
+  // }: {
+  //   item: { name: string; uid: string | null; photo: string | null; avatarId: string | null };
+  // }) => {
+  //   const alreadyIn = participantNames.has(item.name);
+  //   const alreadyInvited = invitedNames.has(item.name);
+  //   // const disabled = alreadyIn || alreadyInvited;
+
+  //   return (
+  //     <View style={s.friendRow}>
+  //       <View style={s.friendLeft}>
+  //         <View style={s.avatarCircleSmall}>
+  //           <Text style={s.avatarInitial}>{item.name.charAt(0).toUpperCase()}</Text>
+  //         </View>
+  //         <Text style={s.friendName} numberOfLines={1}>
+  //           {item.name}
+  //         </Text>
+  //       </View>
+  //       <TouchableOpacity
+  //         style={[s.inviteBtn, alreadyIn && s.inviteBtnDisabled]}
+  //         onPress={() => handleInviteFriend(item.name)}
+  //         disabled={alreadyIn}
+  //         activeOpacity={0.85}
+  //       >
+  //         <Text style={[s.inviteBtnText, alreadyIn && s.inviteBtnTextDisabled]}>
+  //           {alreadyIn ? 'In Lobby' : alreadyInvited ? 'Invited' : 'Invite'}
+  //         </Text>
+  //       </TouchableOpacity>
+  //     </View>
+  //   );
+  // };
+
+  const renderFriendItem = ({
+  item,
+}: {
+  item: { name: string; uid: string | null; photo: string | null; avatarId: string | null };
+}) => {
+  const alreadyIn = participantNames.has(item.name);
+
+  return (
+    <View style={s.friendRow}>
+      <View style={s.friendLeft}>
+        <View style={s.avatarCircleSmall}>
+          <Text style={s.avatarInitial}>{item.name.charAt(0).toUpperCase()}</Text>
+        </View>
+        <Text style={s.friendName} numberOfLines={1}>
+          {item.name}
+        </Text>
+      </View>
+      <TouchableOpacity
+        style={[s.inviteBtn, alreadyIn && s.inviteBtnDisabled]}
+        onPress={() => handleInviteFriend(item.name)}
+        disabled={alreadyIn}
+        activeOpacity={0.85}
+      >
+        <Text style={[s.inviteBtnText, alreadyIn && s.inviteBtnTextDisabled]}>
+          {alreadyIn ? 'Invited' : 'Invite'}
+        </Text>
+      </TouchableOpacity>
+    </View>
+  );
+};
+
   const ListHeader = (
     <>
       <GradientCard colors={['#E0972A', '#B31B34']} borderRadius={20} style={s.headerCard}>
@@ -226,6 +322,18 @@ const EventLobbyScreen = ({ navigation, route }: Props) => {
           <Text style={s.codeValue}>{eventCode || '------'}</Text>
           <Copy size={16} color="rgba(245,240,224,0.7)" />
         </View>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={s.inviteFriendsBtn}
+        onPress={() => {
+    setToastMsg('');
+    setInviteModalVisible(true);
+  }}
+        activeOpacity={0.85}
+      >
+        <UserPlus size={16} color="#FFF6E8" />
+        <Text style={s.inviteFriendsBtnText}>Invite Friends</Text>
       </TouchableOpacity>
     </>
   );
@@ -283,6 +391,41 @@ const EventLobbyScreen = ({ navigation, route }: Props) => {
           </TouchableOpacity>
         )}
       </View>
+
+      <Modal
+        visible={inviteModalVisible}
+        animationType="slide"
+        transparent
+        onRequestClose={() => setInviteModalVisible(false)}
+      >
+        <View style={s.modalOverlay}>
+          <View style={s.modalCard}>
+            <View style={s.modalHeader}>
+              <Text style={s.modalTitle}>Invite Friends</Text>
+              <TouchableOpacity onPress={() => setInviteModalVisible(false)}>
+                <XIcon size={20} color="rgba(245,240,224,0.8)" />
+              </TouchableOpacity>
+            </View>
+
+            {gameFriends.length === 0 ? (
+              <View style={s.modalEmptyContainer}>
+                <Text style={s.modalEmptyText}>
+                  No friends yet — add some from Multiplayer first.
+                </Text>
+              </View>
+            ) : (
+              <FlatList
+                data={gameFriends}
+                keyExtractor={(item) => item.name}
+                renderItem={renderFriendItem}
+                contentContainerStyle={{ paddingVertical: 8 }}
+              />
+            )}
+
+            <Toast message={toastMsg} />
+          </View>
+        </View>
+      </Modal>
     </Layout>
   );
 };
@@ -338,6 +481,23 @@ const s = StyleSheet.create({
     fontSize: 15,
     fontWeight: '800',
     letterSpacing: 1,
+  },
+  inviteFriendsBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(255,255,255,0.10)',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.16)',
+    paddingVertical: 12,
+    marginBottom: 14,
+  },
+  inviteFriendsBtnText: {
+    color: '#FFF6E8',
+    fontWeight: '700',
+    fontSize: 13,
   },
   participantRow: {
     flexDirection: 'row',
@@ -453,5 +613,88 @@ const s = StyleSheet.create({
   },
   readyBtnTextActive: {
     color: '#0F1E63',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    justifyContent: 'flex-end',
+  },
+  modalCard: {
+    backgroundColor: '#14224F',
+    borderTopLeftRadius: 22,
+    borderTopRightRadius: 22,
+    paddingHorizontal: 18,
+    paddingTop: 16,
+    paddingBottom: 28,
+    maxHeight: '70%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12,
+  },
+  modalTitle: {
+    color: '#FFF6E8',
+    fontWeight: '800',
+    fontSize: 16,
+  },
+  modalEmptyContainer: {
+    paddingVertical: 30,
+    alignItems: 'center',
+  },
+  modalEmptyText: {
+    color: 'rgba(245,240,224,0.6)',
+    fontSize: 13,
+    textAlign: 'center',
+  },
+  friendRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.12)',
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    marginBottom: 8,
+  },
+  friendLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+    gap: 10,
+  },
+  avatarCircleSmall: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: '#2A5FCB',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  friendName: {
+    color: 'rgba(245,240,224,0.92)',
+    fontWeight: '700',
+    fontSize: 13,
+    flexShrink: 1,
+  },
+  inviteBtn: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 10,
+    backgroundColor: '#F2C879',
+  },
+  inviteBtnDisabled: {
+    backgroundColor: 'rgba(255,255,255,0.10)',
+  },
+  inviteBtnText: {
+    color: '#0F1E63',
+    fontWeight: '800',
+    fontSize: 12,
+  },
+  inviteBtnTextDisabled: {
+    color: 'rgba(245,240,224,0.5)',
   },
 });

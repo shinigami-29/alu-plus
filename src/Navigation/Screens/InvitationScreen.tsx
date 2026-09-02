@@ -8,7 +8,7 @@ import {
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useGameLogic } from '../GameLogicContext';
-import { Check, X, MailOpen, UserPlus, Clock } from 'lucide-react-native';
+import { Check, X, MailOpen, UserPlus, Clock, Trophy } from 'lucide-react-native';
 import Layout from '../../components/AppLayout/Layout';
 import Avatar from '../../components/Avatar/Avatar';
 import { COLORS } from '../../theme/colors';
@@ -16,6 +16,17 @@ import Toast from '../../components/Toast/Toast';
 
 type Props = { navigation: NativeStackNavigationProp<any> };
 type Tab = 'invites' | 'requests';
+
+// Unified shape for both game invites and tournament invites so they can
+// render in the same "Invites" tab/list.
+type CombinedInvite = {
+  kind: 'game' | 'tournament';
+  from: string;
+  fromPhoto?: string | null;
+  fromAvatarId?: string | null;
+  timestamp?: number;
+  eventId?: string;
+};
 
 const InvitationScreen = ({ navigation }: Props) => {
   const {
@@ -27,13 +38,15 @@ const InvitationScreen = ({ navigation }: Props) => {
     acceptFriendRequest,
     rejectFriendRequest,
     incomingFriendRequests,
+    incomingEventInvitations,
+    rejectEventInvite,
      multiplayerError,
      INVITE_TTL_MS,
   } = useGameLogic();
 
   const [activeTab, setActiveTab] = useState<Tab>('invites');
 
-  // NEW: ticking clock so the countdown badge on each invite card updates
+  // ticking clock so the countdown badge on each invite card updates
   // every second without needing a fresh Firebase write
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
@@ -55,12 +68,39 @@ const InvitationScreen = ({ navigation }: Props) => {
   const handleRejectFriend = (fromName: string) =>
     rejectFriendRequest(fromName);
 
-  // NEW: seconds left before this invite auto-expires, floored at 0
-  const getSecondsLeft = (timestamp: number) => {
+  // Accepting a tournament invite doesn't need a Firebase write of its own —
+  // EventLobbyScreen's existing auto-join effect adds this user as a
+  // participant the moment it mounts. We just clear the invite and navigate.
+  const handleAcceptEvent = (fromName: string, eventId: string) => {
+    rejectEventInvite(fromName); // reuse: just removes /eventInvitations/{myName}/{fromName}
+    navigation.navigate('EventLobby', { eventId });
+  };
+  const handleRejectEvent = (fromName: string) => rejectEventInvite(fromName);
+
+  // seconds left before this invite auto-expires, floored at 0
+  const getSecondsLeft = (timestamp?: number) => {
     if (!timestamp) return null;
     const msLeft = timestamp + INVITE_TTL_MS - now;
     return Math.max(0, Math.ceil(msLeft / 1000));
   };
+
+  // Merge game invites + tournament invites into one list for the Invites tab
+  const combinedInvites: CombinedInvite[] = [
+    ...incomingInvitations.map((i: any) => ({
+      kind: 'game' as const,
+      from: i.from,
+      fromPhoto: i.fromPhoto,
+      fromAvatarId: i.fromAvatarId,
+      timestamp: i.timestamp,
+    })),
+    ...incomingEventInvitations.map((i: any) => ({
+      kind: 'tournament' as const,
+      from: i.from,
+      fromPhoto: i.fromPhoto,
+      fromAvatarId: i.fromAvatarId,
+      eventId: i.eventId,
+    })),
+  ];
 
   return (
     <Layout
@@ -96,9 +136,9 @@ const InvitationScreen = ({ navigation }: Props) => {
                     activeTab === 'invites' && s.tabTextActive,
                   ]}
                 >
-                  Game Invites
-                  {incomingInvitations.length > 0
-                    ? ` (${incomingInvitations.length})`
+                  Invites
+                  {combinedInvites.length > 0
+                    ? ` (${combinedInvites.length})`
                     : ''}
                 </Text>
               </TouchableOpacity>
@@ -112,7 +152,7 @@ const InvitationScreen = ({ navigation }: Props) => {
                     activeTab === 'requests' && s.tabTextActive,
                   ]}
                 >
-                  Friend Requests
+                  Friends
                   {incomingFriendRequests.length > 0
                     ? ` (${incomingFriendRequests.length})`
                     : ''}
@@ -121,7 +161,7 @@ const InvitationScreen = ({ navigation }: Props) => {
             </View>
 
             {activeTab === 'invites' ? (
-              incomingInvitations.length === 0 ? (
+              combinedInvites.length === 0 ? (
                 <View style={s.emptyContainer}>
                   <View style={s.emptyIconCircle}>
                     <MailOpen size={28} color="#a1a1a1" />
@@ -133,11 +173,15 @@ const InvitationScreen = ({ navigation }: Props) => {
                 </View>
               ) : (
                 <FlatList
-                  data={incomingInvitations}
-                  keyExtractor={(item, index) => index.toString()}
+                  data={combinedInvites}
+                  keyExtractor={(item, index) => `${item.kind}-${item.from}-${index}`}
                   contentContainerStyle={s.content}
                   renderItem={({ item }) => {
-                    const secondsLeft = getSecondsLeft(item.timestamp);
+                    const isTournament = item.kind === 'tournament';
+                    const secondsLeft = isTournament
+                      ? null
+                      : getSecondsLeft(item.timestamp);
+
                     return (
                       <View style={s.playerCard}>
                         <Avatar
@@ -151,7 +195,9 @@ const InvitationScreen = ({ navigation }: Props) => {
                             {item.from}
                           </Text>
                           <Text style={s.inviteSubtext}>
-                            wants to play with you
+                            {isTournament
+                              ? 'invited you to a tournament'
+                              : 'wants to play with you'}
                           </Text>
                           {secondsLeft !== null && (
                             <View style={s.countdownRow}>
@@ -163,15 +209,30 @@ const InvitationScreen = ({ navigation }: Props) => {
                           )}
                         </View>
                         <View style={s.actionRow}>
+                          {isTournament && (
+                            <Trophy
+                              size={14}
+                              color="#F2C879"
+                              style={{ marginRight: 2 }}
+                            />
+                          )}
                           <TouchableOpacity
                             style={s.acceptBtn}
-                            onPress={() => handleAccept(item.from)}
+                            onPress={() =>
+                              isTournament
+                                ? handleAcceptEvent(item.from, item.eventId!)
+                                : handleAccept(item.from)
+                            }
                           >
                             <Check size={16} color="#fff" strokeWidth={3} />
                           </TouchableOpacity>
                           <TouchableOpacity
                             style={s.rejectBtn}
-                            onPress={() => handleReject(item.from)}
+                            onPress={() =>
+                              isTournament
+                                ? handleRejectEvent(item.from)
+                                : handleReject(item.from)
+                            }
                           >
                             <X size={16} color="#fff" strokeWidth={3} />
                           </TouchableOpacity>
@@ -262,7 +323,7 @@ const s = StyleSheet.create({
     alignItems: 'center',
   },
   tabBtnActive: { backgroundColor: COLORS.gold },
-  tabText: { fontSize: 12, fontWeight: '700', color: 'rgba(245,239,224,0.6)' },
+  tabText: { fontSize: 11, fontWeight: '700', color: 'rgba(245,239,224,0.6)' },
   tabTextActive: { color: COLORS.navyDark },
 
   emptyContainer: {
@@ -320,7 +381,6 @@ const s = StyleSheet.create({
   playerName: { fontSize: 15, fontWeight: '700', color: COLORS.textOnDark },
   inviteSubtext: { fontSize: 12, color: 'rgba(245,239,224,0.6)', marginTop: 2 },
 
-  // NEW: countdown badge shown under the "wants to play with you" subtext
   countdownRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -333,7 +393,7 @@ const s = StyleSheet.create({
     fontWeight: '600',
   },
 
-  actionRow: { flexDirection: 'row', gap: 8 },
+  actionRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   acceptBtn: {
     width: 38,
     height: 38,

@@ -27,8 +27,10 @@ const handleNotificationNavigation = (data?: { [key: string]: string | object })
       navigationRef.current.navigate('Invitation' as never);
     } else if (data.type === 'friend_request') {
       navigationRef.current.navigate('Multiplayer' as never);
-    }
+    }else if (data.type === 'event_invite') {
+  navigationRef.current.navigate('Invitation' as never);
   };
+}
 
   tryNavigate();
 };
@@ -55,6 +57,11 @@ const ensureNotificationChannels = async () => {
     name: 'Friend Requests',
     importance: AndroidImportance.HIGH,
   });
+  await notifee.createChannel({
+  id: 'event_invites',
+  name: 'Tournament Invites',
+  importance: AndroidImportance.HIGH,
+});
 };
 
 export const GameLogicProvider = ({children}: {children: React.ReactNode}) => {
@@ -121,6 +128,7 @@ export const GameLogicProvider = ({children}: {children: React.ReactNode}) => {
     logic.listenToInvitations();
     logic.listenToSentInvitations();
     logic.listenToFriendRequests();
+     logic.listenToEventInvitations();
   }, [logic.myName]);
 
  useEffect(() => {
@@ -131,7 +139,7 @@ export const GameLogicProvider = ({children}: {children: React.ReactNode}) => {
       ensureNotificationChannels()
         .then(() => {
           const incomingChannelId = remoteMessage.data?.channelId as string | undefined;
-          const validChannels = ['default', 'silent', 'game_invites', 'friend_requests'];
+          const validChannels = ['default', 'silent', 'game_invites', 'friend_requests',  'event_invites' ];
           const channelId = validChannels.includes(incomingChannelId ?? '')
             ? incomingChannelId!
             : 'default';

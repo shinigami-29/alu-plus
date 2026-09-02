@@ -1,4 +1,3 @@
-
 import React, { useState, useCallback, useEffect, useRef } from 'react';
 import {
   View,
@@ -34,7 +33,15 @@ type Props = { navigation: NativeStackNavigationProp<any> };
 
 const ModeScreen = ({ navigation }: Props) => {
   const { user, userProfile } = useAuth();
-  const { myName, setMyName, findRandomMatch, incomingInvitations, incomingFriendRequests, multiplayerError, } = useGameLogic();
+  const {
+    myName,
+    setMyName,
+    findRandomMatch,
+    incomingInvitations,
+    incomingFriendRequests,
+    incomingEventInvitations,
+    multiplayerError,
+  } = useGameLogic();
   const [exitModalVisible, setExitModalVisible] = useState(false);
   // TEMP: manually change this to 'none' | 'upcoming' | 'live' to preview UI
 const [eventStatus] = useState<'none' | 'upcoming' | 'live'>('upcoming');
@@ -70,7 +77,10 @@ const [eventStatus] = useState<'none' | 'upcoming' | 'live'>('upcoming');
       return () => subscription.remove();
     }, [])
   );
-  const notificationCount = incomingInvitations.length + incomingFriendRequests.length;
+  const notificationCount =
+    incomingInvitations.length +
+    incomingFriendRequests.length +
+    incomingEventInvitations.length;
   const handleRandomMatch = () => {
     if (!myName) {
       return;
@@ -93,6 +103,7 @@ const [eventStatus] = useState<'none' | 'upcoming' | 'live'>('upcoming');
       <InviteToast
         invitations={incomingInvitations}
         friendRequests={incomingFriendRequests}
+        eventInvitations={incomingEventInvitations}
         navigation={navigation}
       />
 

@@ -127,6 +127,16 @@ const [eventInfo, setEventInfo] = useState<{ eventId: string; roundKey: string; 
     }[]
   >([]);
 
+  const [incomingEventInvitations, setIncomingEventInvitations] = useState<
+  {
+    from: string;
+    eventId: string;
+    eventCode: string;
+    fromAvatarId: string | null;
+    fromPhoto: string | null;
+    timestamp: number;
+  }[]>([])
+
   // myRoleRef mirrors myRole so Firebase listeners always read the latest
   // value, even inside a stale closure. setMyRole() keeps both in sync.
   const [myRole, setMyRoleState] = useState<'X' | 'O' | null>(null);
@@ -162,6 +172,9 @@ const [eventInfo, setEventInfo] = useState<{ eventId: string; roundKey: string; 
   const friendReqListenerRef = useRef<FirebaseDatabaseTypes.Reference | null>(
     null,
   );
+  const eventInvitationsListenerRef = useRef<FirebaseDatabaseTypes.Reference | null>(
+  null,
+); 
   const sentInvListenerRef = useRef<FirebaseDatabaseTypes.Reference | null>(
     null,
   );
@@ -1898,6 +1911,82 @@ setEventInfo(null);
       });
   };
 
+// ============ TOURNAMENT / EVENT INVITES ============
+
+const sendEventInvite = (
+  toName: string,
+  eventId: string,
+  eventCode: string,
+) => {
+  if (!myName || !toName || toName === myName) return;
+
+  database()
+    .ref(`/eventInvitations/${toName}/${myName}`)
+    .set({
+      from: myName,
+      fromUid: auth().currentUser?.uid ?? null,
+      fromPhoto: myPhoto ?? null,
+      fromAvatarId: myAvatarId ?? null,
+      eventId,
+      eventCode,
+      status: 'pending',
+      timestamp: database.ServerValue.TIMESTAMP,
+    })
+    .then(() => {
+      console.log('Event invite sent to:', toName);
+      sendPushNotification(
+        toName,
+        '🏆 Tournament Invite!',
+        `${myName} invited you to a tournament — join now!`,
+        'event_invites',
+        { type: 'event_invite', fromName: myName },
+      );
+    })
+    .catch(err => console.log('sendEventInvite FAILED:', err.message));
+};
+
+const rejectEventInvite = (fromName: string) => {
+  if (!myName) return;
+  database().ref(`/eventInvitations/${myName}/${fromName}`).remove();
+};
+
+const listenToEventInvitations = () => {
+  if (!myName) return;
+  if (eventInvitationsListenerRef.current) {
+    eventInvitationsListenerRef.current.off();
+  }
+  const ref = database().ref(`/eventInvitations/${myName}`);
+  eventInvitationsListenerRef.current = ref;
+  ref.on(
+    'value',
+    snap => {
+      const data = snap.val();
+      if (!data) {
+        setIncomingEventInvitations([]);
+        return;
+      }
+      const list = Object.keys(data)
+        .filter(from => from !== myName && data[from]?.status === 'pending')
+        .map(from => ({
+          from,
+          eventId: data[from]?.eventId,
+          eventCode: data[from]?.eventCode ?? '',
+          fromAvatarId: data[from]?.fromAvatarId ?? null,
+          fromPhoto: data[from]?.fromPhoto ?? null,
+          timestamp: data[from]?.timestamp ?? 0,
+        }));
+      setIncomingEventInvitations(list);
+    },
+    (error: any) => {
+      // Listener got cancelled (e.g. stale permission-denied from before
+      // rules were fixed) — SDK won't auto-retry, so re-attach ourselves.
+      console.log('listenToEventInvitations CANCELLED:', error?.message);
+      eventInvitationsListenerRef.current = null;
+      setTimeout(() => listenToEventInvitations(), 1000);
+    },
+  );
+};
+
   // ============ FRIEND REQUEST FLOW ============
 
   const sendFriendRequest = (toName: string) => {
@@ -2495,6 +2584,10 @@ setEventInfo(null);
       friendReqListenerRef.current.off();
       friendReqListenerRef.current = null;
     }
+    if (eventInvitationsListenerRef.current) {
+  eventInvitationsListenerRef.current.off();
+  eventInvitationsListenerRef.current = null;
+}
     if (invitationsListenerRef.current) {
       invitationsListenerRef.current.off();
       invitationsListenerRef.current = null;
@@ -2563,6 +2656,10 @@ setEventInfo(null);
     acceptInvitation,
     rejectInvitation,
     incomingInvitations,
+    listenToEventInvitations,
+    sendEventInvite,
+    rejectEventInvite,
+    incomingEventInvitations,
     listenToInvitations,
     fetchRecentOpponents,
     randomMatchStatus,
