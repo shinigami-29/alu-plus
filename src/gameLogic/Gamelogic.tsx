@@ -81,6 +81,9 @@ const [eventInfo, setEventInfo] = useState<{ eventId: string; roundKey: string; 
   const opponentLeftTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
     null,
   );
+  const eventOpponentLeftTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+  null,
+);
   const roomHasLoadedRef = useRef(false);
 
   const recordedResultKeyRef = useRef<string | null>(null);
@@ -613,6 +616,13 @@ setEventMatchOver(false);
             })
             .catch(err => console.log('startEventMatch create FAILED:', err.message));
         }
+          ref
+    .update({ [amPlayer1 ? 'hostDisconnected' : 'guestDisconnected']: false })
+    .catch(err => console.log('clear disconnected flag FAILED:', err.message));
+  if (eventOpponentLeftTimeoutRef.current) {
+    clearTimeout(eventOpponentLeftTimeoutRef.current);
+    eventOpponentLeftTimeoutRef.current = null;
+  }
 
         setMyRole(role);
         setOpponentName(oName);
@@ -723,7 +733,18 @@ const maybeAdvanceRound = (eventId: string, roundKey: string) => {
 
       const roundNum = parseInt(roundKey.replace('round', ''), 10);
       const totalRounds = data.bracket.totalRounds ?? 1;
-      if (roundNum >= totalRounds) return; // final already decided
+      if (roundNum >= totalRounds) {
+        // This was the final round — champion is decided. The tournament
+        // is fully over, so remove the event instead of leaving it sitting
+        // around as a permanent "In Progress" entry in the public list.
+        database()
+          .ref(`/events/${eventId}`)
+          .remove()
+          .catch(err =>
+            console.log('Event cleanup after final round FAILED:', err.message),
+          );
+        return;
+      }
 
       const nextRoundKey = `round${roundNum + 1}`;
       if (data.bracket.rounds?.[nextRoundKey]) return; // already generated
@@ -960,32 +981,49 @@ const maybeAdvanceRound = (eventId: string, roundKey: string) => {
       setWinner(data.winner ?? null);
       setRoomIsPrivate(!!data.isPrivate);
 
-      if (eventMatchInfoRef.current || data.isEventMatch) {
-        const opponentDisconnected =
-          myRoleRef.current === 'X' ? data.guestDisconnected : data.hostDisconnected;
+     if (eventMatchInfoRef.current || data.isEventMatch) {
+  const opponentDisconnected =
+    myRoleRef.current === 'X' ? data.guestDisconnected : data.hostDisconnected;
 
-        if (opponentDisconnected && data.status !== 'event_match_over') {
-          forfeitEventMatch(data.hostUid ?? null, data.guestUid ?? null);
-        } else if (data.winner && data.status !== 'event_match_over' && myRoleRef.current === 'X') {
-          recordEventMatchResult(
-            data.winner,
-            data.hostUid ?? null,
-            data.guestUid ?? null,
-            data.lastFirst ?? 'X',
-          );
-        } else if (data.isDraw && myRoleRef.current === 'X') {
-          const nextFirst: Player = (data.lastFirst ?? 'X') === 'X' ? 'O' : 'X';
-          roomRef.current
-            ?.update({
-              board: Array(9).fill(null),
-              currentTurn: nextFirst,
-              winner: null,
-              isDraw: false,
-              lastFirst: nextFirst,
-            })
-            .catch(err => console.log('event draw auto-continue FAILED:', err.message));
-        }
-      }
+  if (opponentDisconnected && data.status !== 'event_match_over') {
+    if (!eventOpponentLeftTimeoutRef.current) {
+      setMultiplayerError(
+        `${opponentName || 'Opponent'} disconnected. Waiting 15s for them to rejoin...`,
+      );
+      eventOpponentLeftTimeoutRef.current = setTimeout(() => {
+        eventOpponentLeftTimeoutRef.current = null;
+        forfeitEventMatch(data.hostUid ?? null, data.guestUid ?? null);
+      }, 15000);
+    }
+  } else {
+    // Opponent is back (or was never gone) — cancel any pending forfeit timer
+    if (eventOpponentLeftTimeoutRef.current) {
+      clearTimeout(eventOpponentLeftTimeoutRef.current);
+      eventOpponentLeftTimeoutRef.current = null;
+      setMultiplayerError('');
+    }
+
+    if (data.winner && data.status !== 'event_match_over' && myRoleRef.current === 'X') {
+      recordEventMatchResult(
+        data.winner,
+        data.hostUid ?? null,
+        data.guestUid ?? null,
+        data.lastFirst ?? 'X',
+      );
+    } else if (data.isDraw && myRoleRef.current === 'X') {
+      const nextFirst: Player = (data.lastFirst ?? 'X') === 'X' ? 'O' : 'X';
+      roomRef.current
+        ?.update({
+          board: Array(9).fill(null),
+          currentTurn: nextFirst,
+          winner: null,
+          isDraw: false,
+          lastFirst: nextFirst,
+        })
+        .catch(err => console.log('event draw auto-continue FAILED:', err.message));
+    }
+  }
+}
 
       if (data.status === 'event_match_over') {
         setEventMatchOver(true);
@@ -1349,11 +1387,28 @@ const maybeAdvanceRound = (eventId: string, roundKey: string) => {
   };
 
     const leaveEventRoom = () => {
-    if (roomRef.current) {
+       const matchAlreadyOver = lastRoomDataRef.current?.status === 'event_match_over';
+      if (roomRef.current) {
+    if (matchAlreadyOver) {
       roomRef.current.off();
       roomRef.current.onDisconnect().cancel().catch(() => {});
       roomRef.current.remove().catch(() => {});
+    } else {
+      const amHost = myRoleRef.current === 'X';
+      roomRef.current
+        .update({ [amHost ? 'hostDisconnected' : 'guestDisconnected']: true })
+        .catch(err => console.log('leaveEventRoom flag update FAILED:', err.message));
+      roomRef.current.off();
+      roomRef.current.onDisconnect().cancel().catch(() => {});
     }
+  }
+
+    if (eventOpponentLeftTimeoutRef.current) {
+    clearTimeout(eventOpponentLeftTimeoutRef.current);
+    eventOpponentLeftTimeoutRef.current = null;
+  }
+
+
     roomRef.current = null;
     listenedCodeRef.current = null;
     eventMatchInfoRef.current = null;

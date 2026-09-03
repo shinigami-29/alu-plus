@@ -28,9 +28,7 @@ type Participant = {
 
 type Props = { navigation: any; route: any };
 
-// NOTE: lowered to 1 for testing so a single player can start a tournament.
-// Bump this back to 2 once you're done testing.
-const MIN_PLAYERS = 1;
+const MIN_PLAYERS = 2;
 const MAX_PLAYERS = 20;
 
 const EventLobbyScreen = ({ navigation, route }: Props) => {
@@ -43,6 +41,7 @@ const EventLobbyScreen = ({ navigation, route }: Props) => {
   const [starting, setStarting] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [toastMsg, setToastMsg] = useState('');
+  const hasNavigatedRef = useRef(false);
 
   // Invite Friends modal state
   const [inviteModalVisible, setInviteModalVisible] = useState(false);
@@ -83,9 +82,10 @@ const EventLobbyScreen = ({ navigation, route }: Props) => {
     list.sort((a, b) => a.joinedAt - b.joinedAt);
     setParticipants(list);
 
-    if (data.status === 'in_progress') {
-      navigation.replace('EventBracket', { eventId });
-    }
+    if (data.status === 'in_progress' && !hasNavigatedRef.current) {
+  hasNavigatedRef.current = true;
+  navigation.replace('EventBracket', { eventId });
+}
   };
 
   // Listen to event + participants (live updates)
@@ -112,7 +112,7 @@ const EventLobbyScreen = ({ navigation, route }: Props) => {
     joinedAt: Date.now(),
   });
     }
-  }, [participants.length]);
+  }, [participants.length , myUid, eventId, userProfile]);
 
   // Load friends list for the Invite modal
   useEffect(() => {
@@ -135,7 +135,9 @@ const EventLobbyScreen = ({ navigation, route }: Props) => {
 
   const toggleReady = () => {
     if (!myUid || !me) return;
-    database().ref(`events/${eventId}/participants/${myUid}/ready`).set(!me.ready);
+    database().ref(`events/${eventId}/participants/${myUid}/ready`)
+    .set(!me.ready)
+    .catch(() => Alert.alert('Error', 'Could not update ready status.'));
   };
 
   const handleLeave = () => {
@@ -203,15 +205,6 @@ const EventLobbyScreen = ({ navigation, route }: Props) => {
       });
   };
 
-  // const handleInviteFriend = (name: string) => {
-  //   sendEventInvite(name, eventId, eventCode);
-  //   setInvitedNames((prev) => {
-  //     const next = new Set(prev);
-  //     next.add(name);
-  //     return next;
-  //   });
-  //     setToastMsg(`Invite has been sent to ${name}`);
-  // };
 
   const handleInviteFriend = (name: string) => {
   sendEventInvite(name, eventId, eventCode);
@@ -239,39 +232,6 @@ const EventLobbyScreen = ({ navigation, route }: Props) => {
       </View>
     </View>
   );
-
-  // const renderFriendItem = ({
-  //   item,
-  // }: {
-  //   item: { name: string; uid: string | null; photo: string | null; avatarId: string | null };
-  // }) => {
-  //   const alreadyIn = participantNames.has(item.name);
-  //   const alreadyInvited = invitedNames.has(item.name);
-  //   // const disabled = alreadyIn || alreadyInvited;
-
-  //   return (
-  //     <View style={s.friendRow}>
-  //       <View style={s.friendLeft}>
-  //         <View style={s.avatarCircleSmall}>
-  //           <Text style={s.avatarInitial}>{item.name.charAt(0).toUpperCase()}</Text>
-  //         </View>
-  //         <Text style={s.friendName} numberOfLines={1}>
-  //           {item.name}
-  //         </Text>
-  //       </View>
-  //       <TouchableOpacity
-  //         style={[s.inviteBtn, alreadyIn && s.inviteBtnDisabled]}
-  //         onPress={() => handleInviteFriend(item.name)}
-  //         disabled={alreadyIn}
-  //         activeOpacity={0.85}
-  //       >
-  //         <Text style={[s.inviteBtnText, alreadyIn && s.inviteBtnTextDisabled]}>
-  //           {alreadyIn ? 'In Lobby' : alreadyInvited ? 'Invited' : 'Invite'}
-  //         </Text>
-  //       </TouchableOpacity>
-  //     </View>
-  //   );
-  // };
 
   const renderFriendItem = ({
   item,
@@ -416,7 +376,7 @@ const EventLobbyScreen = ({ navigation, route }: Props) => {
             ) : (
               <FlatList
                 data={gameFriends}
-                keyExtractor={(item) => item.name}
+                keyExtractor={(item) => item.uid ?? item.name}
                 renderItem={renderFriendItem}
                 contentContainerStyle={{ paddingVertical: 8 }}
               />

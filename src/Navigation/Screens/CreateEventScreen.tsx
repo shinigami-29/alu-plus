@@ -16,6 +16,8 @@ import GradientCard from '../../components/GradientCard/GradientCard';
 import { RefreshCw, Users, KeyRound, Globe, Lock,Medal } from 'lucide-react-native';
 import { generateRoomCode } from '../../components/Utils/roomCode';
 
+const EVENT_STALE_MS = 24 * 60 * 60 * 1000; 
+
 type Props = { navigation: any };
 
 type PublicEvent = {
@@ -23,6 +25,7 @@ type PublicEvent = {
   title: string;
   participantCount: number;
   maxPlayers: number;
+  status: 'waiting' | 'in_progress';
 };
 
 const CreateEventScreen = ({ navigation }: Props) => {
@@ -38,25 +41,43 @@ const CreateEventScreen = ({ navigation }: Props) => {
 
   // Listen for open public events (waiting status)
   useEffect(() => {
-    const ref = database().ref('events').orderByChild('visibility').equalTo('public');
+  const ref = database().ref('events').orderByChild('visibility').equalTo('public');
 
-    const listener = ref.on('value', (snap) => {
-      const data = snap.val() || {};
-      const list: PublicEvent[] = Object.entries(data)
-        .filter(([, e]: any) => e.status === 'waiting')
-        .map(([id, e]: any) => ({
-          id,
-          title: e.title,
-          participantCount: e.participants ? Object.keys(e.participants).length : 0,
-          maxPlayers: e.maxPlayers || 20,
-        }))
-        .filter((e) => e.participantCount < e.maxPlayers);
-      setPublicEvents(list);
-    });
+  const listener = ref.on('value', (snap) => {
+    const data = snap.val() || {};
+    const now = Date.now();
+    const cleanupUpdates: Record<string, null> = {};
 
-    return () => ref.off('value', listener);
-  }, []);
+    const list: PublicEvent[] = Object.entries(data)
+      .filter(([id, e]: any) => {
+        const isStale = now - (e.createdAt || 0) > EVENT_STALE_MS;
+        if (isStale) {
+          cleanupUpdates[`/events/${id}`] = null;
+          return false;
+        }
+        return e.status === 'waiting' || e.status === 'in_progress';
+      })
+      .map(([id, e]: any) => ({
+        id,
+        title: e.title,
+        participantCount: e.participants ? Object.keys(e.participants).length : 0,
+        maxPlayers: e.maxPlayers || 20,
+        status: e.status,
+      }))
+      .filter((e) => e.status === 'in_progress' || e.participantCount < e.maxPlayers);
 
+    setPublicEvents(list);
+
+    if (Object.keys(cleanupUpdates).length > 0) {
+      database()
+        .ref()
+        .update(cleanupUpdates)
+        .catch(() => {});
+    }
+  });
+
+  return () => ref.off('value', listener);
+}, []);
   // Recursively tries a fresh code until it finds one that isn't taken (max 5 tries)
   const findUniqueCode = (attemptsLeft: number): Promise<string> => {
     const code = generateRoomCode();
@@ -166,11 +187,15 @@ const CreateEventScreen = ({ navigation }: Props) => {
       });
   };
 
-  const handleJoinPublic = (eventId: string) => {
-    navigation.navigate('EventLobby', { eventId });
-  };
+const handleJoinPublic = (event: PublicEvent) => {
+  if (event.status === 'in_progress') {
+    Alert.alert('Already Started', 'This tournament has already started.');
+    return;
+  }
+  navigation.navigate('EventLobby', { eventId: event.id });
+};
 
-  const handleRefreshPublicEvents = () => {
+ const handleRefreshPublicEvents = () => {
   setRefreshingEvents(true);
   database()
     .ref('events')
@@ -179,16 +204,35 @@ const CreateEventScreen = ({ navigation }: Props) => {
     .once('value')
     .then((snap) => {
       const data = snap.val() || {};
+      const now = Date.now();
+      const cleanupUpdates: Record<string, null> = {};
+
       const list: PublicEvent[] = Object.entries(data)
-        .filter(([, e]: any) => e.status === 'waiting')
+        .filter(([id, e]: any) => {
+          const isStale = now - (e.createdAt || 0) > EVENT_STALE_MS;
+          if (isStale) {
+            cleanupUpdates[`/events/${id}`] = null;
+            return false;
+          }
+          return e.status === 'waiting' || e.status === 'in_progress';
+        })
         .map(([id, e]: any) => ({
           id,
           title: e.title,
           participantCount: e.participants ? Object.keys(e.participants).length : 0,
           maxPlayers: e.maxPlayers || 20,
+          status: e.status,
         }))
-        .filter((e) => e.participantCount < e.maxPlayers);
+        .filter((e) => e.status === 'in_progress' || e.participantCount < e.maxPlayers);
+
       setPublicEvents(list);
+
+      if (Object.keys(cleanupUpdates).length > 0) {
+        database()
+          .ref()
+          .update(cleanupUpdates)
+          .catch(() => {});
+      }
     })
     .catch(() => {})
     .finally(() => {
@@ -301,27 +345,37 @@ const CreateEventScreen = ({ navigation }: Props) => {
       </TouchableOpacity>
     </View>
           <FlatList
-            data={publicEvents}
-            keyExtractor={(item) => item.id}
-            scrollEnabled={false}
-            renderItem={({ item }) => (
-              <TouchableOpacity
-                style={s.publicRow}
-                activeOpacity={0.85}
-                onPress={() => handleJoinPublic(item.id)}
-              >
-                <View>
-                  <Text style={s.publicTitle}>{item.title}</Text>
-                  <Text style={s.publicSubtitle}>
-                    {item.participantCount}/{item.maxPlayers} joined
-                  </Text>
-                </View>
-                <View style={s.publicJoinPill}>
-                  <Text style={s.publicJoinPillText}>Join</Text>
-                </View>
-              </TouchableOpacity>
-            )}
-          />
+  data={publicEvents}
+  keyExtractor={(item) => item.id}
+  scrollEnabled={false}
+  renderItem={({ item }) => {
+    const started = item.status === 'in_progress';
+    return (
+      <TouchableOpacity
+        style={[s.publicRow, started && s.publicRowStarted]}
+        activeOpacity={started ? 1 : 0.85}
+        onPress={() => handleJoinPublic(item)}
+        disabled={started}
+      >
+        <View>
+          <Text style={[s.publicTitle, started && s.publicTitleStarted]}>
+            {item.title}
+          </Text>
+          <Text style={[s.publicSubtitle, started && s.publicSubtitleStarted]}>
+            {started
+              ? 'Tournament already started'
+              : `${item.participantCount}/${item.maxPlayers} joined`}
+          </Text>
+        </View>
+        <View style={[s.publicJoinPill, started && s.publicJoinPillStarted]}>
+          <Text style={[s.publicJoinPillText, started && s.publicJoinPillTextStarted]}>
+            {started ? 'In Progress' : 'Join'}
+          </Text>
+        </View>
+      </TouchableOpacity>
+    );
+  }}
+/>
         </>
       )}
     </Layout>
@@ -495,4 +549,21 @@ const s = StyleSheet.create({
     fontWeight: '800',
     fontSize: 12,
   },
+  publicRowStarted: {
+  backgroundColor: 'rgba(0,0,0,0.35)',
+  borderColor: 'rgba(255,255,255,0.06)',
+  opacity: 0.6,
+},
+publicTitleStarted: {
+  color: 'rgba(245,240,224,0.5)',
+},
+publicSubtitleStarted: {
+  color: 'rgba(245,240,224,0.35)',
+},
+publicJoinPillStarted: {
+  backgroundColor: 'rgba(255,255,255,0.10)',
+},
+publicJoinPillTextStarted: {
+  color: 'rgba(245,240,224,0.5)',
+},
 });
