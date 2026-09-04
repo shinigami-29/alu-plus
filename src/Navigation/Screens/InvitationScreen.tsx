@@ -393,7 +393,7 @@ const s = StyleSheet.create({
     fontWeight: '600',
   },
 
-  actionRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  actionRow: { flexDirection: 'row', alignItems: 'center', gap: 8 }, 
   acceptBtn: {
     width: 38,
     height: 38,
