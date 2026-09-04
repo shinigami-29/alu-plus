@@ -97,10 +97,38 @@ const LoginScreen = ({ navigation }: Props) => {
   };
 
   const handleFacebookLogin = () => {
-    showAlert(
-      'Coming Soon',
-      'Facebook login is being set up and will be available in a future update. Please use Email, Google, or Guest login for now.',
-    );
+    setFbLoading(true);
+    loginWithFacebook()
+      .then(() => {
+        navigation.replace('Mode');
+      })
+      .catch((err: any) => {
+        console.log('FACEBOOK LOGIN ERROR CODE:', err?.code);
+        console.log('FACEBOOK LOGIN ERROR MESSAGE:', err?.message);
+
+        if (err?.message === 'User cancelled the login process') {
+          // User backed out of the FB dialog themselves — no alert needed
+          return;
+        }
+
+        const notConfigured =
+          err?.code === 'auth/operation-not-allowed' ||
+          err?.code === 'auth/configuration-not-found' ||
+          /not configured|FBSDKCoreKit|No suitable application|invalid app id/i.test(
+            err?.message ?? '',
+          );
+
+        if (notConfigured) {
+          showAlert(
+            'Coming Soon',
+            'Facebook login is being set up and will be available in a future update. Please use Email, Google, or Guest login for now.',
+          );
+          return;
+        }
+
+        showAlert('Facebook Login Failed', getFriendlyAuthError(err?.code));
+      })
+      .finally(() => setFbLoading(false));
   };
 
   return (

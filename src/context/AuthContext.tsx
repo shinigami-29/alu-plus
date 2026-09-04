@@ -340,7 +340,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           });
         } else {
           setUserProfile(snap.data() as UserProfile);
-        }
+        } 
       });
     });
   };
