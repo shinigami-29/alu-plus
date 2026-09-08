@@ -8,17 +8,22 @@ import {
   ActivityIndicator,
   Modal,
   Image,
+  Platform
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth } from '../context/AuthContext';
 import { AlertCircle, Eye, EyeOff, User } from 'lucide-react-native';
 import Layout from '../components/AppLayout/Layout';
 import { AuthHeader } from '../components/headers';
+import {
+  AppleButton,
+  appleAuth,
+} from '@invertase/react-native-apple-authentication';
 
 type Props = { navigation: NativeStackNavigationProp<any> };
 
 const LoginScreen = ({ navigation }: Props) => {
-  const { loginWithEmail, loginWithGoogle, loginAsGuest, loginWithFacebook } =
+  const { loginWithEmail, loginWithGoogle, loginAsGuest, loginWithFacebook, loginWithApple, } =
     useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -28,6 +33,7 @@ const LoginScreen = ({ navigation }: Props) => {
   const [alertTitle, setAlertTitle] = useState('');
   const [alertMessage, setAlertMessage] = useState('');
   const [fbLoading, setFbLoading] = useState(false);
+  const [appleLoading, setAppleLoading] = useState(false);
 
   const showAlert = (title: string, message: string) => {
     setAlertTitle(title);
@@ -131,6 +137,24 @@ const LoginScreen = ({ navigation }: Props) => {
       .finally(() => setFbLoading(false));
   };
 
+    const handleAppleLogin = () => {
+    setAppleLoading(true);
+    loginWithApple()
+      .then(() => {
+        navigation.replace('Mode');
+      })
+      .catch((err: any) => {
+        if (err?.code === appleAuth.Error.CANCELED) {
+          // User backed out of the Apple dialog — no alert needed
+          return;
+        }
+        console.log('APPLE LOGIN ERROR CODE:', err?.code);
+        console.log('APPLE LOGIN ERROR MESSAGE:', err?.message);
+        showAlert('Apple Login Failed', getFriendlyAuthError(err?.code));
+      })
+      .finally(() => setAppleLoading(false));
+  };
+
   return (
     <Layout>
       <View style={{ marginTop: 50 }} />
@@ -232,6 +256,23 @@ const LoginScreen = ({ navigation }: Props) => {
             </>
           )}
         </TouchableOpacity>
+
+       {Platform.OS === 'ios' && (
+  appleLoading ? (
+    <View style={s.appleLoadingBtn}>
+      <ActivityIndicator color="#F5EFE0" />
+    </View>
+  ) : (
+    <AppleButton
+      buttonStyle={AppleButton.Style.WHITE}
+      buttonType={AppleButton.Type.SIGN_IN}
+      style={s.appleBtn}
+      onPress={handleAppleLogin}
+    />
+  )
+)}
+
+        
 
         {/* Guest Login */}
         <TouchableOpacity
@@ -393,6 +434,21 @@ const s = StyleSheet.create({
     color: '#F5EFE0',
     fontSize: 15,
     fontWeight: '700',
+  },
+    appleBtn: {
+    width: '100%',
+    height: 52,
+    marginBottom: 12,
+  },
+
+  appleLoadingBtn: {
+    width: '100%',
+    height: 52,
+    borderRadius: 14,
+    backgroundColor: '#000',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 12,
   },
   guestBtn: {
     backgroundColor: 'rgba(255,255,255,0.04)',

@@ -1,5 +1,6 @@
 //to connect to  firebase
 import React, { createContext, useContext, useEffect, useState } from 'react';
+import { appleAuth } from '@invertase/react-native-apple-authentication';
 import {
   getAuth,
   onAuthStateChanged,
@@ -12,7 +13,9 @@ import {
   linkWithCredential,
   updateProfile as updateFirebaseAuthProfile,
   GoogleAuthProvider,
+  deleteUser,
   FacebookAuthProvider,
+  AppleAuthProvider,
   User,
 } from '@react-native-firebase/auth';
 import {
@@ -25,6 +28,7 @@ import {
   onSnapshot,
   serverTimestamp,
   increment,
+  deleteDoc,
 } from '@react-native-firebase/firestore';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 import { LoginManager, AccessToken, Settings } from 'react-native-fbsdk-next';
@@ -78,7 +82,11 @@ type AuthContextType = {
   loginWithGoogle: () => Promise<void>;
   loginAsGuest: () => Promise<void>;
   loginWithFacebook: () => Promise<void>;
+  loginWithApple: () => Promise<void>;
+  linkGuestWithGoogle: () => Promise<void>;
+  linkGuestWithFacebook: () => Promise<void>;
   logout: () => Promise<void>;
+  deleteAccount: () => Promise<void>;
   updateProfile: (data: Partial<UserProfile>) => Promise<void>;
   refreshProfile: () => void;
   recordGameResult: (result: 'win' | 'loss' | 'draw') => Promise<void>;
@@ -345,6 +353,58 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     });
   };
 
+
+  // login with apple 
+    const loginWithApple = () => {
+    return appleAuth
+      .performRequest({
+        requestedOperation: appleAuth.Operation.LOGIN,
+        requestedScopes: [appleAuth.Scope.EMAIL, appleAuth.Scope.FULL_NAME],
+      })
+      .then(appleAuthRequestResponse => {
+        const { identityToken, nonce, fullName, email } =
+          appleAuthRequestResponse;
+
+        if (!identityToken) {
+          throw new Error('Apple Sign-In failed — no identity token returned');
+        }
+
+        const appleCredential = AppleAuthProvider.credential(
+          identityToken,
+          nonce,
+        );
+
+        return signInWithCredential(authInstance, appleCredential).then(
+          ({ user: appleUser }) => {
+            // Apple only sends fullName/email on the VERY FIRST sign-in —
+            // subsequent logins return null for both
+            const name = fullName
+              ? `${fullName.givenName ?? ''} ${fullName.familyName ?? ''}`.trim()
+              : '';
+            const userEmail = email ?? appleUser.email ?? '';
+
+            const userDoc = doc(usersCollection, appleUser.uid);
+            return getDoc(userDoc).then(snap => {
+              if (!snap.exists()) {
+                return setDoc(
+                  userDoc,
+                  buildDefaultProfile(
+                    appleUser.uid,
+                    name || appleUser.displayName || 'Player',
+                    userEmail
+                      ? userEmail.split('@')[0]
+                      : `apple_${appleUser.uid.slice(0, 6)}`,
+                    userEmail,
+                    null,
+                  ),
+                );
+              }
+            });
+          },
+        );
+      });
+  };
+
   const fetchFacebookProfile = (
     accessToken: string,
   ): Promise<{
@@ -467,6 +527,99 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       });
   };
 
+  // ============ GUEST → PERMANENT ACCOUNT UPGRADE ============
+  // Both functions below use linkWithCredential (NOT signInWithCredential)
+  // so the anonymous user's existing uid — and therefore their Firestore
+  // profile, wins/losses, friends, match history — is preserved. Only the
+  // sign-in method is added on top of the same account.
+
+  const linkGuestWithGoogle = () => {
+    const currentUser = authInstance.currentUser;
+    if (!currentUser) return Promise.reject(new Error('No user logged in'));
+    if (!currentUser.isAnonymous) {
+      return Promise.reject(new Error('This account is not a guest account.'));
+    }
+
+    return GoogleSignin.hasPlayServices()
+      .then(() => GoogleSignin.signOut())
+      .catch(() => {})
+      .then(() => GoogleSignin.signIn())
+      .then(() => GoogleSignin.getTokens())
+      .then(({ idToken, accessToken }) => {
+        const googleCredential = GoogleAuthProvider.credential(
+          idToken,
+          accessToken,
+        );
+        return linkWithCredential(currentUser, googleCredential);
+      })
+      .then(({ user: linkedUser }) => {
+        const updates: Partial<UserProfile> = {};
+        if (linkedUser.email) updates.email = linkedUser.email;
+        if (linkedUser.displayName) updates.name = linkedUser.displayName;
+        if (linkedUser.photoURL) updates.photoURL = linkedUser.photoURL;
+
+        if (Object.keys(updates).length === 0) return;
+
+        return updateDoc(doc(usersCollection, linkedUser.uid), updates).then(
+          () => {
+            setUserProfile(prev => (prev ? { ...prev, ...updates } : null));
+          },
+        );
+      });
+  };
+
+  const linkGuestWithFacebook = () => {
+    const currentUser = authInstance.currentUser;
+    if (!currentUser) return Promise.reject(new Error('No user logged in'));
+    if (!currentUser.isAnonymous) {
+      return Promise.reject(new Error('This account is not a guest account.'));
+    }
+
+    Settings.initializeSDK();
+    LoginManager.logOut();
+
+    return LoginManager.logInWithPermissions(['public_profile', 'email'])
+      .then(result => {
+        if (result.isCancelled) {
+          throw new Error('User cancelled the login process');
+        }
+        return AccessToken.getCurrentAccessToken();
+      })
+      .then(data => {
+        if (!data) {
+          throw new Error('Something went wrong obtaining access token');
+        }
+        const facebookCredential = FacebookAuthProvider.credential(
+          data.accessToken,
+        );
+
+        return fetchFacebookProfile(data.accessToken).then(profile =>
+          linkWithCredential(currentUser, facebookCredential).then(
+            ({ user: linkedUser }) => {
+              const updates: Partial<UserProfile> = {};
+              const email = profile.email ?? linkedUser.email;
+              const name = profile.name || linkedUser.displayName;
+              const photoURL = profile.photoURL ?? linkedUser.photoURL;
+              if (email) updates.email = email;
+              if (name) updates.name = name;
+              if (photoURL) updates.photoURL = photoURL;
+
+              if (Object.keys(updates).length === 0) return;
+
+              return updateDoc(
+                doc(usersCollection, linkedUser.uid),
+                updates,
+              ).then(() => {
+                setUserProfile(prev =>
+                  prev ? { ...prev, ...updates } : null,
+                );
+              });
+            },
+          ),
+        );
+      });
+  };
+
   const refreshProfile = () => {
     if (!user) return;
     fetchUserProfile(user.uid);
@@ -487,6 +640,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setUserProfile(null);
       });
   };
+
+  // delete
+  const deleteAccount = () => {
+    const currentUser =authInstance.currentUser;
+    if(!currentUser) return Promise.reject(new Error("No user logged in"));
+
+    return deleteDoc(doc(usersCollection, currentUser.uid))
+    .catch(err => {
+       console.log('deleteAccount: Firestore doc delete error:', err);
+    })
+    .then(() => deleteUser(currentUser))
+    .then(() => {
+      setUserProfile(null);
+      setUser(null);
+    })
+  }
 
   const updateProfile = (data: Partial<UserProfile>) => {
     if (!user) return Promise.reject('No user');
@@ -518,7 +687,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         loginWithEmail,
         loginWithGoogle,
         loginAsGuest,
+        loginWithApple,
+        linkGuestWithGoogle,
+        linkGuestWithFacebook,
         logout,
+     deleteAccount,
         recordGameResult,
         updateProfile,
         refreshProfile,

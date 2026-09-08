@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,21 +8,31 @@ import {
   TextInput,
   ActivityIndicator,
   Modal,
+  Animated,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth } from '../context/AuthContext';
 import { useFocusEffect } from '@react-navigation/native';
 import { AVATAR_LIST } from '../avatar/Avatar';
-import { Pencil, Check, X, LogOut } from 'lucide-react-native';
+import { Pencil, Check, X, LogOut, Trash2, ShieldCheck } from 'lucide-react-native';
 import Layout from '../components/AppLayout/Layout';
 import Avatar from '../components/Avatar/Avatar';
 import { useGameLogic } from '../Navigation/GameLogicContext';
+import Toast from '../components/Toast/Toast';
 
 type Props = { navigation: NativeStackNavigationProp<any> };
 
 const ProfileScreen = ({ navigation }: Props) => {
-  const { user, userProfile, updateProfile, logout, refreshProfile } =
-    useAuth();
+  const {
+    user,
+    userProfile,
+    updateProfile,
+    logout,
+    deleteAccount,
+    linkGuestWithGoogle,
+    linkGuestWithFacebook,
+    refreshProfile,
+  } = useAuth();
   const {
     myName,
     setMyName,
@@ -37,6 +47,7 @@ const ProfileScreen = ({ navigation }: Props) => {
     user?.email?.split('@')[0] ||
     'Guest';
   const photoURL = userProfile?.photoURL || user?.photoURL || null;
+  const isGuest = !!user?.isAnonymous;
 
   const [editingName, setEditingName] = useState(false);
   const [newName, setNewName] = useState(displayName);
@@ -48,12 +59,44 @@ const ProfileScreen = ({ navigation }: Props) => {
   const [avatarPickerVisible, setAvatarPickerVisible] = useState(false);
   const [avatarSaving, setAvatarSaving] = useState(false);
 
+  const [deleteModalVisible, setDeleteModalVisible] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  const [linkingProvider, setLinkingProvider] = useState<
+    'google' | 'facebook' | null
+  >(null);
+
   const [messageModal, setMessageModal] = useState<{
     visible: boolean;
     type: 'success' | 'error';
     title: string;
     message: string;
   }>({ visible: false, type: 'success', title: '', message: '' });
+
+  const [toast, setToast] = useState<{ visible: boolean; message: string }>({
+    visible: false,
+    message: '',
+  });
+  const toastAnim = useRef(new Animated.Value(-80)).current;
+
+  const showToast = (message: string) => {
+    setToast({ visible: true, message });
+    Animated.timing(toastAnim, {
+      toValue: 0,
+      duration: 250,
+      useNativeDriver: true,
+    }).start();
+
+    setTimeout(() => {
+      Animated.timing(toastAnim, {
+        toValue: -80,
+        duration: 250,
+        useNativeDriver: true,
+      }).start(() => {
+        setToast({ visible: false, message: '' });
+      });
+    }, 1400);
+  };
 
   const showMessage = (
     type: 'success' | 'error',
@@ -109,12 +152,6 @@ const ProfileScreen = ({ navigation }: Props) => {
   const handleLogout = () => {
     setLogoutModalVisible(true);
   };
-
-  // Turns off every active Firebase Realtime Database listener BEFORE
-  // signing the user out. Without this, listeners opened elsewhere in
-  // GameLogic (rooms, presence, invitations, etc.) keep firing after the
-  // auth token is gone, which Firebase rules then reject with a
-  // "Permission denied" error on the login screen.
   const confirmLogout = () => {
     setLogoutModalVisible(false);
     stopAllFirebaseListeners();
@@ -127,32 +164,127 @@ const ProfileScreen = ({ navigation }: Props) => {
       });
   };
 
+  const confirmDeleteAccount = () => {
+    setDeleteModalVisible(false);
+    setDeleting(true);
+    stopAllFirebaseListeners();
+
+    deleteAccount()
+      .then(() => {
+        setDeleting(false);
+        showToast('Your account is deleted');
+        setTimeout(() => {
+          navigation.replace('Login');
+        }, 1400);
+      })
+      .catch((err: any) => {
+        setDeleting(false);
+        if (err?.code === 'auth/requires-recent-login') {
+          showMessage(
+            'error',
+            'Please Log In Again',
+            'For your security, please log out and log back in, then try deleting your account again.',
+          );
+        } else {
+          showMessage(
+            'error',
+            'Error',
+            err?.message || 'Failed to delete account. Please try again.',
+          );
+        }
+      });
+  };
+
+  const handleDeleteAccount = () => {
+    setDeleteModalVisible(true);
+  };
+
+  // ---- Guest → permanent account upgrade ----
+  const handleUpgradeWithGoogle = () => {
+    setLinkingProvider('google');
+    linkGuestWithGoogle()
+      .then(() => {
+        showMessage(
+          'success',
+          'Account Upgraded',
+          'Your account is now linked with Google!',
+        );
+      })
+      .catch((err: any) => {
+        if (err?.code === 'auth/credential-already-in-use') {
+          showMessage(
+            'error',
+            'Already Linked',
+            'This Google account is already linked to another profile.',
+          );
+        } else {
+          showMessage(
+            'error',
+            'Error',
+            err?.message || 'Failed to link Google account.',
+          );
+        }
+      })
+      .finally(() => setLinkingProvider(null));
+  };
+
+  const handleUpgradeWithFacebook = () => {
+    setLinkingProvider('facebook');
+    linkGuestWithFacebook()
+      .then(() => {
+        showMessage(
+          'success',
+          'Account Upgraded',
+          'Your account is now linked with Facebook!',
+        );
+      })
+      .catch((err: any) => {
+        if (err?.message === 'User cancelled the login process') return;
+        if (err?.code === 'auth/credential-already-in-use') {
+          showMessage(
+            'error',
+            'Already Linked',
+            'This Facebook account is already linked to another profile.',
+          );
+        } else {
+          showMessage(
+            'error',
+            'Error',
+            err?.message || 'Failed to link Facebook account.',
+          );
+        }
+      })
+      .finally(() => setLinkingProvider(null));
+  };
+
   const handleSelectAvatar = (avatarId: string) => {
-  setAvatarSaving(true);
-  updateProfile({ avatarId, photoURL: null })
-    .then(() => {
-      setAvatarPickerVisible(false);
-      const currentName = myName || userProfile?.username || userProfile?.name || '';
-      if (currentName) updateLeaderboardName(currentName, avatarId, null);
-      showMessage('success', 'Success', 'Avatar has been update!');
-    })
-    .catch(err => showMessage('error', 'Error', err.message))
-    .finally(() => setAvatarSaving(false));
-};
+    setAvatarSaving(true);
+    updateProfile({ avatarId, photoURL: null })
+      .then(() => {
+        setAvatarPickerVisible(false);
+        const currentName =
+          myName || userProfile?.username || userProfile?.name || '';
+        if (currentName) updateLeaderboardName(currentName, avatarId, null);
+        showMessage('success', 'Success', 'Avatar has been update!');
+      })
+      .catch(err => showMessage('error', 'Error', err.message))
+      .finally(() => setAvatarSaving(false));
+  };
 
   const handleSelectMyPhoto = () => {
-  if (!photoURL) return;
-  setAvatarSaving(true);
-  updateProfile({ avatarId: null })
-    .then(() => {
-      setAvatarPickerVisible(false);
-      const currentName = myName || userProfile?.username || userProfile?.name || '';
-      if (currentName) updateLeaderboardName(currentName, null, photoURL);
-      showMessage('success', 'Success', 'Avatar has been update!');
-    })
-    .catch(err => showMessage('error', 'Error', err.message))
-    .finally(() => setAvatarSaving(false));
-};
+    if (!photoURL) return;
+    setAvatarSaving(true);
+    updateProfile({ avatarId: null })
+      .then(() => {
+        setAvatarPickerVisible(false);
+        const currentName =
+          myName || userProfile?.username || userProfile?.name || '';
+        if (currentName) updateLeaderboardName(currentName, null, photoURL);
+        showMessage('success', 'Success', 'Avatar has been update!');
+      })
+      .catch(err => showMessage('error', 'Error', err.message))
+      .finally(() => setAvatarSaving(false));
+  };
 
   useFocusEffect(
     React.useCallback(() => {
@@ -168,6 +300,15 @@ const ProfileScreen = ({ navigation }: Props) => {
         onBack: () => navigation.goBack(),
       }}
     >
+      {/* Toast    */}
+      {toast.visible && (
+        <Animated.View
+          pointerEvents="none"
+          style={[s.toast, { transform: [{ translateY: toastAnim }] }]}
+        >
+          <Text style={s.toastText}>{toast.message}</Text>
+        </Animated.View>
+      )}
       {/* ===== Floating avatar ===== */}
       <View style={s.avatarFloatWrap}>
         <TouchableOpacity
@@ -318,15 +459,90 @@ const ProfileScreen = ({ navigation }: Props) => {
         </View>
       </View>
 
-      {/* Logout */}
-      <TouchableOpacity
-        style={s.logoutBtn}
-        activeOpacity={0.85}
-        onPress={handleLogout}
-      >
-        <LogOut size={17} color="#F5EFE0" />
-        <Text style={s.logoutBtnText}>Logout</Text>
-      </TouchableOpacity>
+      {/* ===== Guest upgrade prompt ===== */}
+      {isGuest && (
+        <View style={s.upgradeCard}>
+          <View style={s.upgradeHeaderRow}>
+            <ShieldCheck size={18} color="#E0972A" />
+            <Text style={s.upgradeTitle}>Save Your Progress</Text>
+          </View>
+          <Text style={s.upgradeMessage}>
+            You're playing as a guest. Link an account so you don't lose your
+            wins, friends, and stats if you switch devices or reinstall.
+          </Text>
+
+          <TouchableOpacity
+            style={s.upgradeGoogleBtn}
+            activeOpacity={0.85}
+            onPress={handleUpgradeWithGoogle}
+            disabled={linkingProvider !== null}
+          >
+            {linkingProvider === 'google' ? (
+              <ActivityIndicator color="#12194A" size="small" />
+            ) : (
+              <>
+                <Image
+                  source={require('../images/icons/gg.png')}
+                  style={s.upgradeSocialIcon}
+                  resizeMode="contain"
+                />
+                <Text style={s.upgradeGoogleBtnText}>Link with Google</Text>
+              </>
+            )}
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={s.upgradeFacebookBtn}
+            activeOpacity={0.85}
+            onPress={handleUpgradeWithFacebook}
+            disabled={linkingProvider !== null}
+          >
+            {linkingProvider === 'facebook' ? (
+              <ActivityIndicator color="#F5EFE0" size="small" />
+            ) : (
+              <>
+                <Image
+                  source={require('../images/icons/fb.png')}
+                  style={s.upgradeSocialIcon}
+                  resizeMode="contain"
+                />
+                <Text style={s.upgradeFacebookBtnText}>
+                  Link with Facebook
+                </Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </View>
+      )}
+
+      <View style={s.actionBtnRow}>
+        {/* Logout */}
+        <TouchableOpacity
+          style={s.logoutBtn}
+          activeOpacity={0.85}
+          onPress={handleLogout}
+        >
+          <LogOut size={17} color="#F5EFE0" />
+          <Text style={s.logoutBtnText}>Logout</Text>
+        </TouchableOpacity>
+
+        {/* Delete Account */}
+        <TouchableOpacity
+          style={s.deleteBtn}
+          activeOpacity={0.85}
+          onPress={handleDeleteAccount}
+          disabled={deleting}
+        >
+          {deleting ? (
+            <ActivityIndicator color="#F5EFE0" size="small" />
+          ) : (
+            <>
+              <Trash2 size={17} color="#F5EFE0" />
+              <Text style={s.deleteBtnText}>Delete Account</Text>
+            </>
+          )}
+        </TouchableOpacity>
+      </View>
 
       {/* ---- Logout confirmation popup ---- */}
       <Modal
@@ -351,6 +567,39 @@ const ProfileScreen = ({ navigation }: Props) => {
                 onPress={confirmLogout}
               >
                 <Text style={s.modalDangerText}>Logout</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* delete account confrimation */}
+      <Modal
+        visible={deleteModalVisible}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setDeleteModalVisible(false)}
+      >
+        <View style={s.modalOverlay}>
+          <View style={s.modalBox}>
+            <Text style={s.modalTitle}>Delete Account</Text>
+            <Text style={s.modalMessage}>
+              {' '}
+              Are you sure you want to delete your account? This will
+              permanently remove your profile and cannot be undone.
+            </Text>
+            <View style={s.modalBtnRow}>
+              <TouchableOpacity
+                style={s.modalDangerBtn}
+                onPress={confirmDeleteAccount}
+              >
+                <Text style={s.modalDangerText}>Delete</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={s.modalCancelBtn}
+                onPress={() => setDeleteModalVisible(false)}
+              >
+                <Text style={s.modalCancelText}>Cancel</Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -455,6 +704,32 @@ const ProfileScreen = ({ navigation }: Props) => {
 export default ProfileScreen;
 
 const s = StyleSheet.create({
+  // toastt
+
+  toast: {
+    position: 'absolute',
+    top: 12,
+    left: 20,
+    right: 20,
+    zIndex: 999,
+    backgroundColor: '#7A1128',
+    borderWidth: 1,
+    borderColor: 'rgba(224,151,42,0.4)',
+    borderRadius: 14,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  toastText: {
+    color: '#F5EFE0',
+    fontWeight: '700',
+    fontSize: 13.5,
+  },
   // ===== Floating avatar =====
   avatarFloatWrap: {
     alignItems: 'center',
@@ -609,8 +884,79 @@ const s = StyleSheet.create({
     letterSpacing: 1,
   },
 
+  // ===== Guest upgrade card =====
+  upgradeCard: {
+    backgroundColor: '#1B2560',
+    borderRadius: 22,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: 'rgba(224,151,42,0.3)',
+    marginBottom: 16,
+  },
+  upgradeHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 8,
+  },
+  upgradeTitle: {
+    fontSize: 15,
+    fontWeight: '800',
+    color: '#F5EFE0',
+  },
+  upgradeMessage: {
+    fontSize: 13,
+    color: '#8B93AE',
+    lineHeight: 18,
+    marginBottom: 16,
+  },
+  upgradeGoogleBtn: {
+    backgroundColor: 'rgba(255,255,255,0.06)',
+    width: '100%',
+    height: 48,
+    borderRadius: 12,
+    alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.1)',
+    marginBottom: 10,
+  },
+  upgradeGoogleBtnText: {
+    color: '#F5EFE0',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  upgradeFacebookBtn: {
+    backgroundColor: 'rgba(24,118,242,0.18)',
+    width: '100%',
+    height: 48,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(24,118,242,0.4)',
+  },
+  upgradeFacebookBtnText: {
+    color: '#F5EFE0',
+    fontSize: 14,
+    fontWeight: '700',
+  },
+  upgradeSocialIcon: {
+    width: 18,
+    height: 18,
+    marginRight: 10,
+  },
+
+  actionBtnRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+
   // Logout
   logoutBtn: {
+    flex: 1,
     flexDirection: 'row',
     backgroundColor: 'rgba(233,135,125,0.12)',
     borderWidth: 1,
@@ -622,6 +968,25 @@ const s = StyleSheet.create({
     gap: 8,
   },
   logoutBtnText: {
+    color: '#F5EFE0',
+    fontSize: 15,
+    fontWeight: '700',
+  },
+
+  // delte tb
+  deleteBtn: {
+    flex: 1,
+    flexDirection: 'row',
+    backgroundColor: '#B31B34',
+    borderWidth: 1,
+    borderColor: 'rgba(179,27,52,0.6)',
+    paddingVertical: 15,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  deleteBtnText: {
     color: '#F5EFE0',
     fontSize: 15,
     fontWeight: '700',
