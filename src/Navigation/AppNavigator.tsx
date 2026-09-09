@@ -22,6 +22,7 @@ import RoomListScreen from './Screens/RoomListScreen';
 import CreateEventScreen from './Screens/CreateEventScreen';
 import EventLobbyScreen from './Screens/EventLobbyScreen';
 import EventBracketScreen from './Screens/EventBracketScreen';
+import LoadingScreen from './Screens/LoadingScreen';
 
 const Stack = createNativeStackNavigator();
 
@@ -51,6 +52,7 @@ const AppNavigator = () => {
           <Stack.Screen name="CreateEvent" component={CreateEventScreen} />
           <Stack.Screen name="EventLobby" component={EventLobbyScreen} />
           <Stack.Screen name="EventBracket" component={EventBracketScreen} />
+          <Stack.Screen name="loading" component={LoadingScreen}/>
           
         </Stack.Navigator>
       </NavigationContainer>

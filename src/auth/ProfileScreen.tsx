@@ -163,6 +163,7 @@ const ProfileScreen = ({ navigation }: Props) => {
         console.log('Logout FAILED:', err.message);
       });
   };
+  
 
   const confirmDeleteAccount = () => {
     setDeleteModalVisible(false);

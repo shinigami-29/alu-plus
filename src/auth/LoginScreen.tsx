@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
   Modal,
   Image,
-  Platform
+  Platform,
 } from 'react-native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { useAuth } from '../context/AuthContext';
@@ -23,8 +23,13 @@ import {
 type Props = { navigation: NativeStackNavigationProp<any> };
 
 const LoginScreen = ({ navigation }: Props) => {
-  const { loginWithEmail, loginWithGoogle, loginAsGuest, loginWithFacebook, loginWithApple, } =
-    useAuth();
+  const {
+    loginWithEmail,
+    loginWithGoogle,
+    loginAsGuest,
+    loginWithFacebook,
+    loginWithApple,
+  } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
@@ -69,7 +74,7 @@ const LoginScreen = ({ navigation }: Props) => {
     setLoading(true);
     loginWithEmail(email, password)
       .then(() => {
-        navigation.replace('Mode');
+        navigation.replace('loading');
       })
       .catch(err => {
         showAlert('Login Failed', getFriendlyAuthError(err.code));
@@ -80,7 +85,7 @@ const LoginScreen = ({ navigation }: Props) => {
     setLoading(true);
     loginWithGoogle()
       .then(() => {
-        navigation.replace('Mode');
+        navigation.replace('loading');
       })
       .catch(err => {
         console.log('GOOGLE LOGIN ERROR CODE:', err.code);
@@ -137,7 +142,7 @@ const LoginScreen = ({ navigation }: Props) => {
       .finally(() => setFbLoading(false));
   };
 
-    const handleAppleLogin = () => {
+  const handleAppleLogin = () => {
     setAppleLoading(true);
     loginWithApple()
       .then(() => {
@@ -153,6 +158,13 @@ const LoginScreen = ({ navigation }: Props) => {
         showAlert('Apple Login Failed', getFriendlyAuthError(err?.code));
       })
       .finally(() => setAppleLoading(false));
+  };
+
+  const handleAppleUnavailable = () => {
+    showAlert(
+      'Not Available',
+      'Sign in with Apple is only available on iOS devices.',
+    );
   };
 
   return (
@@ -257,22 +269,34 @@ const LoginScreen = ({ navigation }: Props) => {
           )}
         </TouchableOpacity>
 
-       {Platform.OS === 'ios' && (
-  appleLoading ? (
-    <View style={s.appleLoadingBtn}>
-      <ActivityIndicator color="#F5EFE0" />
-    </View>
-  ) : (
-    <AppleButton
-      buttonStyle={AppleButton.Style.WHITE}
-      buttonType={AppleButton.Type.SIGN_IN}
-      style={s.appleBtn}
-      onPress={handleAppleLogin}
-    />
-  )
-)}
-
-        
+        {Platform.OS === 'ios' ? (
+          <View style={s.appleBtnWrap}>
+            <AppleButton
+              buttonStyle={AppleButton.Style.WHITE}
+              buttonType={AppleButton.Type.SIGN_IN}
+              style={s.appleBtn}
+              onPress={handleAppleLogin}
+            />
+            {appleLoading && (
+              <View style={s.appleLoadingOverlay} pointerEvents="none">
+                <ActivityIndicator color="#12194A" />
+              </View>
+            )}
+          </View>
+        ) : (
+          <TouchableOpacity
+            style={s.appleBtnAndroid}
+            onPress={handleAppleUnavailable}
+            activeOpacity={0.85}
+          >
+            <Image
+              source={require('../images/icons/apple.png')}
+              style={s.socialIcon}
+              resizeMode="contain"
+            />
+            <Text style={s.appleBtnAndroidText}>Sign in with Apple</Text>
+          </TouchableOpacity>
+        )}
 
         {/* Guest Login */}
         <TouchableOpacity
@@ -410,7 +434,7 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: 'rgba(255, 255, 255, 0.24)',
     marginBottom: 12,
   },
   googleBtnText: {
@@ -427,7 +451,7 @@ const s = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(24,118,242,0.4)',
+    borderColor: 'rgba(24, 118, 242, 0.45)',
     marginBottom: 12,
   },
   facebookButtonText: {
@@ -435,7 +459,7 @@ const s = StyleSheet.create({
     fontSize: 15,
     fontWeight: '700',
   },
-    appleBtn: {
+  appleBtn: {
     width: '100%',
     height: 52,
     marginBottom: 12,
@@ -450,6 +474,42 @@ const s = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 12,
   },
+
+  appleBtnWrap: {
+    width: '100%',
+    height: 52,
+    marginBottom: 12,
+  },
+
+  appleLoadingOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: '#fff',
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  appleBtnAndroid: {
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    width: '100%',
+    height: 52,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexDirection: 'row',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.24)',
+    marginBottom: 12,
+  },
+  appleBtnAndroidText: {
+    color: '#ece6e6',
+    fontSize: 15,
+    fontWeight: '700',
+  },
   guestBtn: {
     backgroundColor: 'rgba(255,255,255,0.04)',
     width: '100%',
@@ -459,7 +519,7 @@ const s = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.1)',
+    borderColor: 'rgba(255, 255, 255, 0.24)',
   },
   guestBtnText: {
     color: '#F5EFE0',
