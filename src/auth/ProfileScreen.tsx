@@ -253,7 +253,7 @@ const ProfileScreen = ({ navigation }: Props) => {
             'Error',
             err?.message || 'Failed to link Facebook account.',
           );
-        }
+        }  
       })
       .finally(() => setLinkingProvider(null));
   };
