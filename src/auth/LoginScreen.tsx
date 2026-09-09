@@ -15,10 +15,7 @@ import { useAuth } from '../context/AuthContext';
 import { AlertCircle, Eye, EyeOff, User } from 'lucide-react-native';
 import Layout from '../components/AppLayout/Layout';
 import { AuthHeader } from '../components/headers';
-import {
-  AppleButton,
-  appleAuth,
-} from '@invertase/react-native-apple-authentication';
+import { appleAuth } from '@invertase/react-native-apple-authentication';
 
 type Props = { navigation: NativeStackNavigationProp<any> };
 
@@ -269,34 +266,30 @@ const LoginScreen = ({ navigation }: Props) => {
           )}
         </TouchableOpacity>
 
-        {Platform.OS === 'ios' ? (
-          <View style={s.appleBtnWrap}>
-            <AppleButton
-              buttonStyle={AppleButton.Style.WHITE}
-              buttonType={AppleButton.Type.SIGN_IN}
-              style={s.appleBtn}
-              onPress={handleAppleLogin}
-            />
-            {appleLoading && (
-              <View style={s.appleLoadingOverlay} pointerEvents="none">
-                <ActivityIndicator color="#12194A" />
-              </View>
-            )}
-          </View>
-        ) : (
-          <TouchableOpacity
-            style={s.appleBtnAndroid}
-            onPress={handleAppleUnavailable}
-            activeOpacity={0.85}
-          >
-            <Image
-              source={require('../images/icons/apple.png')}
-              style={s.socialIcon}
-              resizeMode="contain"
-            />
-            <Text style={s.appleBtnAndroidText}>Sign in with Apple</Text>
-          </TouchableOpacity>
-        )}
+        {/* Apple Login — custom button so the label matches the other
+            social buttons; the native AppleButton derives its font size
+            from its height and cannot be overridden */}
+        <TouchableOpacity
+          style={s.appleBtn}
+          onPress={
+            Platform.OS === 'ios' ? handleAppleLogin : handleAppleUnavailable
+          }
+          disabled={appleLoading}
+          activeOpacity={0.85}
+        >
+          {appleLoading ? (
+            <ActivityIndicator color="#F5EFE0" />
+          ) : (
+            <>
+              <Image
+                source={require('../images/icons/apple.png')}
+                style={s.appleIcon}
+                resizeMode="contain"
+              />
+              <Text style={s.appleBtnText}>Sign in with Apple</Text>
+            </>
+          )}
+        </TouchableOpacity>
 
         {/* Guest Login */}
         <TouchableOpacity
@@ -460,40 +453,6 @@ const s = StyleSheet.create({
     fontWeight: '700',
   },
   appleBtn: {
-    width: '100%',
-    height: 52,
-    marginBottom: 12,
-  },
-
-  appleLoadingBtn: {
-    width: '100%',
-    height: 52,
-    borderRadius: 14,
-    backgroundColor: '#000',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 12,
-  },
-
-  appleBtnWrap: {
-    width: '100%',
-    height: 52,
-    marginBottom: 12,
-  },
-
-  appleLoadingOverlay: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-
-  appleBtnAndroid: {
     backgroundColor: 'rgba(255,255,255,0.04)',
     width: '100%',
     height: 52,
@@ -505,8 +464,8 @@ const s = StyleSheet.create({
     borderColor: 'rgba(255, 255, 255, 0.24)',
     marginBottom: 12,
   },
-  appleBtnAndroidText: {
-    color: '#ece6e6',
+  appleBtnText: {
+    color: '#F5EFE0',
     fontSize: 15,
     fontWeight: '700',
   },
@@ -530,6 +489,15 @@ const s = StyleSheet.create({
     width: 20,
     height: 20,
     marginRight: 10,
+  },
+  // Own style, not socialIcon — the Apple mark is a single-colour glyph and
+  // must match the label; the Google/Facebook logos are multicolour and
+  // would be flattened by a tint
+  appleIcon: {
+    width: 20,
+    height: 20,
+    marginRight: 10,
+    tintColor: '#F5EFE0',
   },
   registerRow: {
     flexDirection: 'row',
