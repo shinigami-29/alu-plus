@@ -269,27 +269,27 @@ const LoginScreen = ({ navigation }: Props) => {
         {/* Apple Login — custom button so the label matches the other
             social buttons; the native AppleButton derives its font size
             from its height and cannot be overridden */}
-        <TouchableOpacity
-          style={s.appleBtn}
-          onPress={
-            Platform.OS === 'ios' ? handleAppleLogin : handleAppleUnavailable
-          }
-          disabled={appleLoading}
-          activeOpacity={0.85}
-        >
-          {appleLoading ? (
-            <ActivityIndicator color="#F5EFE0" />
-          ) : (
-            <>
-              <Image
-                source={require('../images/icons/apple.png')}
-                style={s.appleIcon}
-                resizeMode="contain"
-              />
-              <Text style={s.appleBtnText}>Sign in with Apple</Text>
-            </>
-          )}
-        </TouchableOpacity>
+        {Platform.OS === 'ios' && (
+  <TouchableOpacity
+    style={s.appleBtn}
+    onPress={handleAppleLogin}
+    disabled={appleLoading}
+    activeOpacity={0.85}
+  >
+    {appleLoading ? (
+      <ActivityIndicator color="#F5EFE0" />
+    ) : (
+      <>
+        <Image
+          source={require('../images/icons/apple.png')}
+          style={s.appleIcon}
+          resizeMode="contain"
+        />
+        <Text style={s.appleBtnText}>Sign in with Apple</Text>
+      </>
+    )}
+  </TouchableOpacity>
+)}
 
         {/* Guest Login */}
         <TouchableOpacity

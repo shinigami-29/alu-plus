@@ -23,7 +23,7 @@ const LoadingScreen = ({ navigation }: Props) => {
         toValue: 1,
         duration: 900,
         useNativeDriver: true,
-      }),
+      }),  
       Animated.spring(titleScale, {
         toValue: 1,
         friction: 6,
