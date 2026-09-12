@@ -82,3 +82,6 @@ replay_pid*.log
 .firebaserc
 
 .env
+ installed-app.apk 
+ keytool 
+ log.txt

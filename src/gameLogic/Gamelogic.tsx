@@ -12,26 +12,38 @@ import firestore from '@react-native-firebase/firestore';
 
 
 const NOTIFICATION_API_URL = 'https://alu-plus-backend.onrender.com/send-notification';
-const NOTIFICATION_API_KEY = 'alu_plus'; //must match backend's API_SECRET
+
 
 const sendPushNotification = (
   toUsername: string | null | undefined,
   title: string,
   body: string,
   channelId: string = 'default',
-   extraData: Record<string, string> = {},
+  extraData: Record<string, string> = {},
 ) => {
   if (!toUsername) return;
-  fetch(NOTIFICATION_API_URL, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'x-api-key': NOTIFICATION_API_KEY,
-    },
-    body: JSON.stringify({ toUsername, title, body, channelId, ...extraData }),
-  }).catch(err => console.log('sendPushNotification FAILED:', err.message));
-};
 
+  // CHANGED: get logged-in user's Firebase ID token instead of using static API key
+  auth()
+    .currentUser?.getIdToken()
+    .then(token => {
+      if (!token) {
+        console.log('sendPushNotification skipped: no auth token');
+        return;
+      }
+
+      // CHANGED: send token in Authorization header instead of x-api-key
+      fetch(NOTIFICATION_API_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ toUsername, title, body, channelId, ...extraData }),
+      }).catch(err => console.log('sendPushNotification FAILED:', err.message));
+    })
+    .catch(err => console.log('getIdToken FAILED:', err.message));
+};
 const GameLogic = (myAvatarId?: string | null, myPhoto?: string | null) => {
   const [board, setBoard] = useState<BoxCell[]>(Array(9).fill(null));
   const [currentPlayer, setCurrentPlayer] = useState<Player>('X');
